@@ -1,0 +1,47 @@
+# ── Ambiente ──────────────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ── Python ────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+venv/
+.venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# ── Node / Frontend ──────────────────────────
+node_modules/
+dist/
+.vite/
+
+# ── Intermediários (agents.md) ───────────────
+.tmp/
+
+# ── IDE ───────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── OS ────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Credenciais ──────────────────────────────
+credentials.json
+token.json
+
+# ── Logs ─────────────────────────────────────
+*.log
+
+# ── Pytest ───────────────────────────────────
+.pytest_cache/
+htmlcov/
+.coverage
