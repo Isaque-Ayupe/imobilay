@@ -26,7 +26,7 @@ class NormalizeAgent(BaseAgent):
         normalized = []
         seen = set()
 
-        for raw in context.properties:
+        for raw in context.raw_properties:
             try:
                 prop = self._normalize_one(raw)
                 # Deduplicação por (endereço + preço + área)
@@ -44,7 +44,7 @@ class NormalizeAgent(BaseAgent):
         )
 
     def validate_input(self, context: ContextStore) -> bool:
-        return len(context.properties) > 0
+        return len(context.raw_properties) > 0
 
     def _normalize_one(self, raw) -> Property:
         """Converte um registro raw/dict em Property normalizado."""

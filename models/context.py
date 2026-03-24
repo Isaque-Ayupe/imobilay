@@ -129,6 +129,7 @@ class ContextStore(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     version: int = 0
     input: ProcessedInput | None = None
+    raw_properties: list[dict] = Field(default_factory=list)
     properties: list[Property] = Field(default_factory=list)
     analysis: AnalysisData = Field(default_factory=AnalysisData)
     user: UserProfile = Field(default_factory=UserProfile)

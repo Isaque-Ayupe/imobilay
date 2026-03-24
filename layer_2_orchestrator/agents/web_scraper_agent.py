@@ -18,7 +18,7 @@ from layer_2_orchestrator.agents.base_agent import BaseAgent
 class WebScraperAgent(BaseAgent):
     agent_id = "web_scraper"
     fallback_value = []
-    _output_field = "properties"
+    _output_field = "raw_properties"
 
     async def execute(self, context: ContextStore) -> ContextPatch:
         """
@@ -33,7 +33,7 @@ class WebScraperAgent(BaseAgent):
 
         return ContextPatch(
             agent_id=self.agent_id,
-            field="properties",
+            field="raw_properties",
             value=[p.model_dump() for p in properties],
         )
 
