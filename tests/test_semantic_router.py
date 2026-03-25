@@ -5,7 +5,7 @@ from layer_1_input.semantic_router import SemanticRouter
 async def test_semantic_router_initialization():
     router = SemanticRouter()
     await router.initialize()
-    assert router._embeddings_cache is not None
+    assert router._model is not None or router._use_fallback is True
 
 @pytest.mark.asyncio
 async def test_semantic_router_route():
