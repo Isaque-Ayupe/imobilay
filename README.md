@@ -58,7 +58,7 @@ cd c:\imobilay
 pip install -r requirements.txt fastapi uvicorn
 
 # Suba a API na porta 8000
-uvicorn api:app --reload --port 8000
+python -m uvicorn api:app --reload --port 8000
 ```
 > **Nota de Teste:** O servidor estará disponível em `http://localhost:8000`. Você pode conferir a documentação gerada instantaneamente do Swagger em `http://localhost:8000/docs`.
 
