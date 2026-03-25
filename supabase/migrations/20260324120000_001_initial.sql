@@ -201,7 +201,18 @@ ALTER TABLE sessions            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE messages            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE feedback_records    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE saved_properties    ENABLE ROW LEVEL SECURITY;
--- execution_traces e intent_embeddings: acesso apenas via service_role (sem RLS de usuário)
+ALTER TABLE execution_traces    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE intent_embeddings   ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "service_role only execution_traces"
+    ON execution_traces FOR ALL
+    USING (auth.role() = 'service_role')
+    WITH CHECK (auth.role() = 'service_role');
+
+CREATE POLICY "service_role only intent_embeddings"
+    ON intent_embeddings FOR ALL
+    USING (auth.role() = 'service_role')
+    WITH CHECK (auth.role() = 'service_role');
 
 -- Policies: cada usuário só acessa seus próprios dados
 CREATE POLICY "user vê e edita próprio perfil"
