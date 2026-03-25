@@ -27,7 +27,11 @@ class ObservabilityLayer:
     """Coleta e armazena métricas e gera alertas no log."""
 
     def __init__(self, repository: TraceRepository | None = None):
-        self._repo = repository or TraceRepository(get_system_client())
+        self._repo = repository
+
+    async def _ensure_repo(self):
+        if self._repo is None:
+            self._repo = TraceRepository(await get_system_client())
 
     async def record_execution(
         self,
@@ -44,6 +48,7 @@ class ObservabilityLayer:
         dag_groups_count: int | None = None
     ) -> None:
         """Processa e salva o trace de uma execução do pipeline completo."""
+        await self._ensure_repo()
         
         properties_count = len(context.properties)
         valuation_count = len(context.analysis.valuation)

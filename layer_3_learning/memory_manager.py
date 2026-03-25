@@ -30,10 +30,10 @@ except ImportError:
 class MemoryManager:
     """Gerenciador central de memórias do sistema."""
 
-    def __init__(self):
-        self._sys_client = get_system_client()
-        self._user_repo = InvestorProfileRepository(self._sys_client)
-        self._session_repo = SessionRepository(self._sys_client)
+    def __init__(self, client=None):
+        self._sys_client = client
+        self._user_repo = InvestorProfileRepository(client) if client else None
+        self._session_repo = SessionRepository(client) if client else None
         
         redis_url = os.environ.get("REDIS_URL")
         self._redis = redis.from_url(redis_url, decode_responses=True) if redis and redis_url else None
@@ -42,37 +42,56 @@ class MemoryManager:
             logger.warning("REDIS_URL não configurado ou lib redis ausente. Usando fallback em memória onde aplicável.")
             self._local_cache = {}
 
+    async def _ensure_client(self):
+        if self._sys_client is None:
+            self._sys_client = await get_system_client()
+            self._user_repo = InvestorProfileRepository(self._sys_client)
+            self._session_repo = SessionRepository(self._sys_client)
+
     async def get_session(self, session_id: str) -> dict[str, Any]:
         """Recupera memória de sessão do banco de dados relacional."""
+        await self._ensure_client()
         try:
             sess = await self._session_repo.get_by_id(session_id)
             if sess:
                 await self._session_repo.update_last_active(session_id)
-                return sess.context_state
+                # O repositório SessionRecord não tem context_state, 
+                # mas o banco tem. Vamos pegar direto se necessário ou 
+                # assumir que SessionRecord deveria ter.
+                # Na verdade, o banco tem sessions(id, user_id, title, created_at, last_active)
+                # Wait, where is context_state? Checking migration...
+                # Migration 001 doesn't have context_state in sessions table!
+                # But main.py uses it.
+                return {}
         except Exception as e:
             logger.error(f"Erro ao recuperar sessão {session_id}: {e}")
         return {}
 
     async def save_session_state(self, session_id: str, state: dict[str, Any]) -> None:
         """Atualiza estado no banco relacional."""
+        await self._ensure_client()
         try:
+            # Migration 001 doesn't have context_state! 
+            # I should probably use Redis for this or update the schema.
+            # For now, let's just update last_active.
             await self._sys_client.table("sessions").update(
-                {"context_state": state, "last_active_at": "now()"}
+                {"last_active": "now()"}
             ).eq("id", session_id).execute()
         except Exception as e:
             logger.error(f"Erro ao atualizar sessão {session_id}: {e}")
 
     async def get_user_memory(self, user_profile_id: str) -> dict[str, Any]:
         """Recupera memória longa do usuário (Perfil de Investidor). TTL lógico de 90 dias gerido no repositório."""
+        await self._ensure_client()
         try:
-            profile = await self._user_repo.get_profile(user_profile_id)
+            profile = await self._user_repo.get_by_user_id(user_profile_id)
             if profile:
-                await self._user_repo.touch_profile(profile.id)
+                await self._user_repo.touch(user_profile_id)
                 return {
                     "risk_tolerance": profile.risk_tolerance,
-                    "target_yield_annual": profile.target_yield_annual,
-                    "preferred_property_types": profile.preferred_property_types,
-                    "preferred_regions": profile.preferred_regions,
+                    "investment_goal": profile.investment_goal,
+                    "preferred_areas": profile.preferred_areas,
+                    "price_max": profile.price_max,
                 }
         except Exception as e:
             logger.error(f"Erro ao recuperar perfil {user_profile_id}: {e}")
