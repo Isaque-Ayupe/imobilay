@@ -14,11 +14,11 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
+from uuid import UUID
 
 from database.client import get_system_client
-from database.repositories import TraceRepository
+from database.repositories.trace_repository import TraceRepository, TraceRecord
 from models.context import ContextStore
-from models.routing import RoutineTrace
 
 logger = logging.getLogger(__name__)
 
@@ -35,17 +35,16 @@ class ObservabilityLayer:
         total_duration_ms: int,
         gate_score: float,
         intent: str | None,
-        confidence: float | None
-    ) -> RoutineTrace:
+        confidence: float | None,
+        is_compound: bool = False,
+        agents_used: list[str] | None = None,
+        agents_failed: list[str] | None = None,
+        agents_skipped: list[str] | None = None,
+        latency_per_agent: dict | None = None,
+        dag_groups_count: int | None = None
+    ) -> None:
         """Processa e salva o trace de uma execução do pipeline completo."""
         
-        # Extrair métricas dos agentes
-        agent_metrics = {}
-        for record in context.get_snapshot(context.version).get("patches", []):
-            # O trace real vem do Orchestrator, então isso precisa ser repassado
-            # Neste boilerplate usamos o record real que vamos montar
-            pass
-
         properties_count = len(context.properties)
         valuation_count = len(context.analysis.valuation)
         opportunities_count = len(context.analysis.opportunities)
@@ -61,31 +60,30 @@ class ObservabilityLayer:
                 f"[ALERT] Low Confidence: Trace {context.trace_id} teve gate score {gate_score:.2f}"
             )
 
-        # Tratar fallback rate (precisaria ser uma janela de 1h)
-        # Aqui fazemos apenas o save do trace completo no banco (RoutineTrace ou ExecutionTrace)
-        
-        # Como o banco tem a tabela `execution_traces`, a interface exata do save é pelo repositorio
-        # Vamos montar os metadados
-        metadata = {
-            "intent": intent,
-            "confidence": confidence,
-            "properties_found": properties_count,
-            "valuations_calculated": valuation_count,
-            "opportunities_detected": opportunities_count,
-            "gate_score": gate_score,
-            "total_ms": total_duration_ms
-        }
+        # Montar o TraceRecord para o repositório
+        trace_record = TraceRecord(
+            trace_id=UUID(context.trace_id) if isinstance(context.trace_id, str) else context.trace_id,
+            session_id=UUID(context.input.session_id) if context.input and context.input.session_id else None,
+            user_id=UUID(context.user.id) if context.user and context.user.id else None,
+            intent_detected=intent,
+            intent_confidence=confidence,
+            is_compound_intent=is_compound,
+            confidence_gate_score=gate_score,
+            confidence_gate_passed=gate_score >= 0.7, # Threshold padrão do ConfidenceGate
+            properties_found=properties_count,
+            properties_with_valuation=valuation_count,
+            opportunities_detected=opportunities_count,
+            latency_total_ms=total_duration_ms,
+            latency_per_agent=latency_per_agent or {},
+            agents_used=agents_used or [],
+            agents_failed=agents_failed or [],
+            agents_skipped=agents_skipped or [],
+            dag_execution_groups=dag_groups_count,
+            created_at=datetime.now()
+        )
 
         # Salvar async no banco
         try:
-            return await self._repo.save_trace(
-                trace_id=context.trace_id,
-                session_id=context.input.session_id if context.input else None,
-                user_id=context.user.id if context.user else None,
-                total_duration_ms=total_duration_ms,
-                gate_score=gate_score,
-                metadata=metadata
-            )
+            await self._repo.save(trace_record)
         except Exception as e:
             logger.error(f"Erro ao salvar trace de execução: {e}")
-            return None

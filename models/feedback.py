@@ -87,8 +87,10 @@ class OrchestratorResult(BaseModel):
     context_data: dict = Field(default_factory=dict)    # ContextStore serializado
     execution_trace: list[AgentExecutionRecord] = Field(default_factory=list)
     total_duration_ms: int = 0
+    agents_used: list[str] = Field(default_factory=list)
     agents_failed: list[str] = Field(default_factory=list)
     agents_skipped: list[str] = Field(default_factory=list)
+    latency_per_agent: dict[str, int] = Field(default_factory=dict)
 
 
 class ExecutionTrace(BaseModel):

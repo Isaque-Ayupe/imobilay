@@ -100,7 +100,13 @@ class ImobilayPipeline:
             total_duration_ms=orch_result.total_duration_ms,
             gate_score=gate_result.score,
             intent=routing.primary_intent,
-            confidence=routing.confidence
+            confidence=routing.confidence,
+            is_compound=routing.is_compound,
+            agents_used=orch_result.agents_used,
+            agents_failed=orch_result.agents_failed,
+            agents_skipped=orch_result.agents_skipped,
+            latency_per_agent=orch_result.latency_per_agent,
+            dag_groups_count=len(dag.execution_groups)
         )
         
         # Salva state na session memory 

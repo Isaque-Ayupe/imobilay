@@ -118,12 +118,18 @@ class Orchestrator:
 
         total_ms = int((time.time() - start_time) * 1000)
 
+        # Coletar métricas adicionais para o OrchestratorResult
+        agents_used = [r.agent_id for r in records if r.status == AgentStatus.SUCCESS or r.status == AgentStatus.FALLBACK]
+        latency_per_agent = {r.agent_id: r.duration_ms for r in records}
+
         return OrchestratorResult(
             context_data=current_context.model_dump(),
             execution_trace=records,
             total_duration_ms=total_ms,
+            agents_used=agents_used,
             agents_failed=agents_failed,
             agents_skipped=agents_skipped,
+            latency_per_agent=latency_per_agent
         )
 
     async def _execute_agent(
