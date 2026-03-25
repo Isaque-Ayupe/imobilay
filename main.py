@@ -9,6 +9,9 @@ from __future__ import annotations
 
 import logging
 from uuid import uuid4
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from layer_1_input.input_processor import InputProcessor
 from layer_1_input.semantic_router import SemanticRouter
@@ -22,7 +25,7 @@ from layer_2_orchestrator.response_verbalizer import ResponseVerbalizer
 from layer_3_learning.memory_manager import MemoryManager
 from layer_3_learning.observability_layer import ObservabilityLayer
 
-from models.context import ContextStore
+from models.context import ContextStore, UserProfile
 
 logger = logging.getLogger(__name__)
 
@@ -61,10 +64,18 @@ class ImobilayPipeline:
 
         # 1. Recuperar memórias (Sessão / Usuário)
         # Opcional - injeção na mensagem caso precisemos de histórico
-        session_state = await self.memory.get_session(session_id)
+        await self.memory.get_session(session_id)
+        user_mem = await self.memory.get_user_memory(user_id)
+        
+        # Construir UserProfile para o InputProcessor
+        user_profile = UserProfile(id=user_id)
+        if user_mem:
+            user_profile.preferences.max_budget = user_mem.get("price_max")
+            user_profile.preferences.preferred_areas = user_mem.get("preferred_areas", [])
+            user_profile.preferences.investment_goal = user_mem.get("investment_goal")
         
         # 2. Layer 1: Input Processing
-        processed_input = self.processor.process(message, session_id, user_id)
+        processed_input = self.processor.process(message, session_id, user_profile)
         
         # 3. Layer 1: Routing
         routing = await self.router.route(processed_input.message)

@@ -53,41 +53,69 @@ class WebScraperAgent(BaseAgent):
             neighborhood = "Brooklin"
         elif "vila madalena" in message.lower():
             neighborhood = "Vila Madalena"
+        elif "ibirapuera" in message.lower():
+            neighborhood = "Ibirapuera"
 
         # Dados mock realistas
-        mock_data = [
-            RawProperty(
-                raw_title=f"Apartamento 2 quartos - {neighborhood}",
-                raw_price="R$ 749.000",
-                raw_area="68m²",
-                raw_rooms="2 quartos",
-                raw_address=f"Rua dos Pinheiros, 1240",
-                raw_neighborhood=neighborhood,
-                raw_city=city,
-                url="https://example.com/imovel/1",
-                source=PropertySource.ZAP,
-            ),
-            RawProperty(
-                raw_title=f"Studio moderno - {neighborhood}",
-                raw_price="R$ 420.000",
-                raw_area="35m²",
-                raw_rooms="1 quarto",
-                raw_address=f"Alameda Lorena, 890",
-                raw_neighborhood=neighborhood,
-                raw_city=city,
-                url="https://example.com/imovel/2",
-                source=PropertySource.VIVAREAL,
-            ),
-            RawProperty(
-                raw_title=f"Cobertura ampla - {neighborhood}",
-                raw_price="R$ 1.250.000",
-                raw_area="120m²",
-                raw_rooms="3 quartos",
-                raw_address=f"Rua Oscar Freire, 500",
-                raw_neighborhood=neighborhood,
-                raw_city=city,
-                url="https://example.com/imovel/3",
-                source=PropertySource.OLX,
-            ),
-        ]
+        if neighborhood == "Ibirapuera":
+            mock_data = [
+                RawProperty(
+                    raw_title="Flat próximo ao Parque Ibirapuera",
+                    raw_price="R$ 820.000",
+                    raw_area="45m²",
+                    raw_rooms="1 quarto",
+                    raw_address="Rua Joinville, 150",
+                    raw_neighborhood="Ibirapuera",
+                    raw_city="São Paulo",
+                    url="https://example.com/imovel/ibira1",
+                    source=PropertySource.ZAP,
+                ),
+                RawProperty(
+                    raw_title="Studio de Luxo Ibirapuera",
+                    raw_price="R$ 780.000",
+                    raw_area="38m²",
+                    raw_rooms="1 quarto",
+                    raw_address="Av. República do Líbano, 1200",
+                    raw_neighborhood="Ibirapuera",
+                    raw_city="São Paulo",
+                    url="https://example.com/imovel/ibira2",
+                    source=PropertySource.VIVAREAL,
+                ),
+            ]
+        else:
+            mock_data = [
+                RawProperty(
+                    raw_title=f"Apartamento 2 quartos - {neighborhood}",
+                    raw_price="R$ 749.000",
+                    raw_area="68m²",
+                    raw_rooms="2 quartos",
+                    raw_address=f"Rua dos Pinheiros, 1240",
+                    raw_neighborhood=neighborhood,
+                    raw_city=city,
+                    url="https://example.com/imovel/1",
+                    source=PropertySource.ZAP,
+                ),
+                RawProperty(
+                    raw_title=f"Studio moderno - {neighborhood}",
+                    raw_price="R$ 420.000",
+                    raw_area="35m²",
+                    raw_rooms="1 quarto",
+                    raw_address=f"Alameda Lorena, 890",
+                    raw_neighborhood=neighborhood,
+                    raw_city=city,
+                    url="https://example.com/imovel/2",
+                    source=PropertySource.VIVAREAL,
+                ),
+                RawProperty(
+                    raw_title=f"Cobertura ampla - {neighborhood}",
+                    raw_price="R$ 1.250.000",
+                    raw_area="120m²",
+                    raw_rooms="3 quartos",
+                    raw_address=f"Rua Oscar Freire, 500",
+                    raw_neighborhood=neighborhood,
+                    raw_city=city,
+                    url="https://example.com/imovel/3",
+                    source=PropertySource.OLX,
+                ),
+            ]
         return mock_data
