@@ -54,9 +54,11 @@ async def chat_endpoint(req: ChatRequest):
         )
     except Exception as e:
         import traceback
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error in chat endpoint: {str(e)}")
         traceback.print_exc()
-        # Security: Do not expose internal error details to the client
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="An internal server error occurred.")
 
 
 @app.get("/api/health")
