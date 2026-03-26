@@ -1,3 +1,3 @@
-## 2024-03-25 - ContextStore Serialization Bottleneck
-**Learning:** In a multi-agent environment using deep copies of large contexts for immutability, full Pydantic model serialization and deserialization (`deepcopy(self.model_dump())` followed by `ContextStore.model_validate(data)`) creates a major performance bottleneck for each patch application.
-**Action:** Use Pydantic's built-in `model_copy(deep=True)` and set nested properties natively using `getattr` and `setattr` instead of rebuilding entire nested structures using dictionary key traversal. This avoids full conversion loops.
+## 2026-03-26 - Chat Interface Re-renders with Active Indicators
+**Learning:** In chat interfaces, maintaining state for "active" typing indicators or pipeline processing steps at the `MessageList` level causes all previous static messages to re-render continuously. This is an O(N) operation where N grows linearly with chat history, resulting in a noticeable performance bottleneck over long sessions.
+**Action:** Always wrap immutable list items (like historical `MessageBubble` components) in `React.memo` when rendering them alongside frequently updating state items (like typing indicators or progress bars).
