@@ -149,47 +149,47 @@ class ContextStore(BaseModel):
         Returns:
             Nova instância de ContextStore com o patch aplicado
         """
-        # Criar cópia profunda do estado atual
-        new_data = deepcopy(self.model_dump())
-        new_version = self.version + 1
+        # Criar cópia profunda do estado atual (mais rápido via Pydantic model_copy)
+        new_ctx = self.model_copy(deep=True)
+        new_ctx.version += 1
 
         # Registrar o patch
         patch = ContextPatch(
             agent_id=agent_id,
             field=field,
             value=value,
-            version=new_version,
+            version=new_ctx.version,
         )
-        new_data["patches"].append(patch.model_dump())
+        new_ctx.patches.append(patch)
 
         # Aplicar o patch no campo (suporta campos nested com ".")
         parts = field.split(".")
-        target = new_data
+        target = new_ctx
+
+        # Navegar pelos atributos
         for part in parts[:-1]:
-            if isinstance(target, dict):
+            if isinstance(target, BaseModel):
+                target = getattr(target, part)
+            elif isinstance(target, dict):
                 target = target[part]
             elif isinstance(target, list) and part.isdigit():
                 target = target[int(part)]
         
         final_key = parts[-1]
-        if isinstance(target, dict):
-            # Serializar o valor se for um modelo Pydantic ou lista de modelos
-            if isinstance(value, BaseModel):
-                target[final_key] = value.model_dump()
-            elif isinstance(value, list) and value and isinstance(value[0], BaseModel):
-                target[final_key] = [v.model_dump() for v in value]
-            else:
-                target[final_key] = value
 
-        new_data["version"] = new_version
+        # Atribuir o valor final
+        if isinstance(target, BaseModel):
+            setattr(target, final_key, value)
+        elif isinstance(target, dict):
+            target[final_key] = value
 
-        return ContextStore.model_validate(new_data)
+        return new_ctx
 
     def add_error(self, error: AgentError) -> "ContextStore":
         """Adiciona um erro e retorna nova instância."""
-        new_data = deepcopy(self.model_dump())
-        new_data["errors"].append(error.model_dump())
-        return ContextStore.model_validate(new_data)
+        new_ctx = self.model_copy(deep=True)
+        new_ctx.errors.append(error)
+        return new_ctx
 
     def get_snapshot(self, version: int) -> dict:
         """
