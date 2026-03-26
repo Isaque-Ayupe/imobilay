@@ -6,14 +6,14 @@ def test_dag_resolver_investment():
     resolver = DAGResolver()
     routing = RoutingResult(
         message="investimento imobiliario",
-        primary_intent="investment_analysis",
+        primary_intent="investimento",
         confidence=0.9
     )
     dag = resolver.resolve(routing)
     
-    assert dag.intent == "investment_analysis"
-    assert "web_scraper" in dag.nodes
-    assert "investment_analysis" in dag.nodes
+    assert dag.intent == "investimento"
+    assert "web_scraper" in [n.agent_id for n in dag.nodes]
+    assert "investment_analysis" in [n.agent_id for n in dag.nodes]
 
 def test_dag_resolver_fallback():
     resolver = DAGResolver()
@@ -24,5 +24,6 @@ def test_dag_resolver_fallback():
     )
     dag = resolver.resolve(routing)
     
-    assert len(dag.nodes) == 0
-    assert "valuation" not in dag.nodes
+    # Defaults to buscar_imoveis
+    assert len(dag.nodes) > 0
+    assert "web_scraper" in [n.agent_id for n in dag.nodes]

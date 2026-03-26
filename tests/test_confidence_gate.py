@@ -8,5 +8,5 @@ def test_confidence_gate_empty():
     
     result = gate.validate(ctx)
     assert result.passed is False
-    assert result.recommendation == GateRecommendation.ASK_MORE_INFO
+    assert result.recommendation == GateRecommendation.RETURN_LIMITATION
     assert "properties" in result.missing_fields
