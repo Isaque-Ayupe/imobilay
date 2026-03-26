@@ -16,7 +16,7 @@ app = FastAPI(title="IMOBILAY API", version="1.0.0")
 # CORS config para Vite frontend dev server (default porta 5173)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "*"],
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -54,8 +54,11 @@ async def chat_endpoint(req: ChatRequest):
         )
     except Exception as e:
         import traceback
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error in chat endpoint: {str(e)}")
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal server error occurred.")
 
 
 @app.get("/api/health")
