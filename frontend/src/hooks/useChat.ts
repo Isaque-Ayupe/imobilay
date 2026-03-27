@@ -15,6 +15,9 @@ export function useChat() {
   const [isTyping, setIsTyping] = useState(false);
   
   const pipeline = usePipeline();
+  // ⚡ Bolt Optimization: Destructure startPipeline so we don't depend on the entire
+  // changing pipeline object in the useCallback, preventing sendMessage recreation.
+  const { startPipeline } = pipeline;
 
   const sendMessage = useCallback(async (content: string) => {
     if (!content.trim()) return;
@@ -31,7 +34,7 @@ export function useChat() {
     setIsTyping(true);
 
     // Inicia o pipeline de análise
-    await pipeline.startPipeline();
+    await startPipeline();
 
     // Adiciona a resposta do assistente baseada no mock
     const assistantMsg: Message = {
@@ -44,7 +47,7 @@ export function useChat() {
 
     setMessages(prev => [...prev, assistantMsg]);
     setIsTyping(false);
-  }, [pipeline]);
+  }, [startPipeline]);
 
   return {
     messages,
