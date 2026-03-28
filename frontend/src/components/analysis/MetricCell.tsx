@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 
 interface MetricCellProps {
   label: string;
@@ -7,7 +7,10 @@ interface MetricCellProps {
   highlight?: 'green' | 'coral' | 'neutral';
 }
 
-export function MetricCell({ label, value, subValue, highlight = 'neutral' }: MetricCellProps) {
+// ⚡ Bolt Optimization:
+// React.memo prevents unnecessary re-renders when parent component
+// receives unrelated state updates like pipeline status.
+export const MetricCell = memo(function MetricCell({ label, value, subValue, highlight = 'neutral' }: MetricCellProps) {
   const highlightClasses = {
     green: 'text-green',
     coral: 'text-coral',
@@ -29,4 +32,4 @@ export function MetricCell({ label, value, subValue, highlight = 'neutral' }: Me
       )}
     </div>
   );
-}
+});

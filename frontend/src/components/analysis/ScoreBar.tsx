@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { motion } from 'framer-motion';
 
 interface ScoreBarProps {
@@ -6,7 +7,10 @@ interface ScoreBarProps {
   delay?: number;
 }
 
-export function ScoreBar({ label, score, delay = 0 }: ScoreBarProps) {
+// ⚡ Bolt Optimization:
+// React.memo prevents unnecessary re-renders when parent component
+// receives unrelated state updates like pipeline status.
+export const ScoreBar = memo(function ScoreBar({ label, score, delay = 0 }: ScoreBarProps) {
   // Garantir que score esteja entre 0 e 10
   const normalizedScore = Math.max(0, Math.min(10, score));
   const percentage = (normalizedScore / 10) * 100;
@@ -27,4 +31,4 @@ export function ScoreBar({ label, score, delay = 0 }: ScoreBarProps) {
       </span>
     </div>
   );
-}
+});
