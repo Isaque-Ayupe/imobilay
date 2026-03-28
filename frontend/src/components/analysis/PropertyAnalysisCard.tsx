@@ -147,8 +147,9 @@ export function PropertyAnalysisCard({
                 </div>
               )}
               <div className="pt-2">
+                {/* 🛡️ Sentinel: Sanitize URL to prevent javascript: XSS */}
                 <a 
-                  href={property.url || '#'} 
+                  href={property.url?.startsWith('http') ? property.url : '#'}
                   target="_blank" 
                   rel="noreferrer"
                   className="flex items-center gap-1.5 text-blue hover:text-blue-light transition-colors text-xs font-medium w-fit"
