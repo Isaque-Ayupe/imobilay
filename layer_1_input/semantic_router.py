@@ -46,6 +46,29 @@ INTENT_KEYWORDS = {
     ],
 }
 
+DEFAULT_INTENT_EXAMPLES = {
+    "buscar_imoveis": [
+        "quero um apartamento com 2 quartos",
+        "procuro imóvel para comprar em pinheiros",
+        "busco kitnet perto do metrô",
+    ],
+    "analisar_imovel": [
+        "analisar se esse imóvel está caro",
+        "quero saber o preço justo desse apartamento",
+        "faça uma análise desse imóvel",
+    ],
+    "investimento": [
+        "quero investir em um apartamento",
+        "analise o roi desse imóvel",
+        "busco rentabilidade com aluguel",
+    ],
+    "refinar_busca": [
+        "agora filtre só os mais baratos",
+        "remova os imóveis sem garagem",
+        "ordene pelos melhores",
+    ],
+}
+
 
 class SemanticRouter:
     """
@@ -56,6 +79,7 @@ class SemanticRouter:
     def __init__(self):
         self._model = None
         self._intent_embeddings: dict[str, list[np.ndarray]] = {}
+        self._embeddings_cache: dict[str, list[np.ndarray]] | None = None
         self._use_fallback = False
 
     async def initialize(self, intent_examples: dict[str, list[str]] | None = None):
@@ -71,16 +95,20 @@ class SemanticRouter:
             self._model = SentenceTransformer(MODEL_NAME)
             self._use_fallback = False
 
-            if intent_examples:
-                # Computar embeddings em memória
-                for intent_name, examples in intent_examples.items():
-                    embeddings = self._model.encode(examples)
-                    self._intent_embeddings[intent_name] = [
-                        emb / np.linalg.norm(emb) for emb in embeddings
-                    ]
+            examples_by_intent = intent_examples or DEFAULT_INTENT_EXAMPLES
+            for intent_name, examples in examples_by_intent.items():
+                embeddings = self._model.encode(examples)
+                self._intent_embeddings[intent_name] = [
+                    emb / np.linalg.norm(emb) for emb in embeddings
+                ]
+            self._embeddings_cache = dict(self._intent_embeddings)
 
         except ImportError:
             self._use_fallback = True
+            self._embeddings_cache = {
+                intent_name: [np.array([1.0])]
+                for intent_name in (intent_examples or DEFAULT_INTENT_EXAMPLES)
+            }
 
     async def route(self, message: str) -> RoutingResult:
         """

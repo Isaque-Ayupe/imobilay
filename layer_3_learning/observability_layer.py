@@ -27,7 +27,12 @@ class ObservabilityLayer:
     """Coleta e armazena métricas e gera alertas no log."""
 
     def __init__(self, repository: TraceRepository | None = None):
-        self._repo = repository or TraceRepository(get_system_client())
+        self._repo = repository
+
+    async def _get_repo(self) -> TraceRepository:
+        if self._repo is None:
+            self._repo = TraceRepository(await get_system_client())
+        return self._repo
 
     async def record_execution(
         self,
@@ -84,6 +89,7 @@ class ObservabilityLayer:
 
         # Salvar async no banco
         try:
-            await self._repo.save(trace_record)
+            repo = await self._get_repo()
+            await repo.save(trace_record)
         except Exception as e:
             logger.error(f"Erro ao salvar trace de execução: {e}")

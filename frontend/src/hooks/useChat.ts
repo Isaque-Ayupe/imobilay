@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import type { Message } from '../types';
-import { MOCK_CONTEXT_DATA } from '../data/mock';
 import { usePipeline } from './usePipeline';
+import { chat } from '../services/api';
 
 export function useChat() {
   const [messages, setMessages] = useState<Message[]>([
@@ -13,6 +13,7 @@ export function useChat() {
     }
   ]);
   const [isTyping, setIsTyping] = useState(false);
+  const [sessionId] = useState(`sess-${Date.now()}`);
   
   const pipeline = usePipeline();
 
@@ -30,21 +31,44 @@ export function useChat() {
     setMessages(prev => [...prev, userMsg]);
     setIsTyping(true);
 
-    // Inicia o pipeline de análise
-    await pipeline.startPipeline();
+    try {
+      // Inicia o pipeline de análise visual
+      const pipelinePromise = pipeline.startPipeline();
 
-    // Adiciona a resposta do assistente baseada no mock
-    const assistantMsg: Message = {
-      id: `msg-a-${Date.now()}`,
-      role: 'assistant',
-      content: 'Com base na sua busca, localizei 2 imóveis em Pinheiros. Ambos apresentam dados favoráveis, mas a primeira opção se destaca pelo desvio negativo de preço, gerando maior potencial de investimento. Abaixo está a análise estruturada:',
-      timestamp: new Date(),
-      contextData: MOCK_CONTEXT_DATA
-    };
+      // Chama a API real do backend
+      const response = await chat({
+        message: content,
+        session_id: sessionId
+      });
 
-    setMessages(prev => [...prev, assistantMsg]);
-    setIsTyping(false);
-  }, [pipeline]);
+      // Aguarda o pipeline terminar (se quisermos sincronizar a exibição)
+      await pipelinePromise;
+
+      // Adiciona a resposta real do assistente
+      const assistantMsg: Message = {
+        id: `msg-a-${Date.now()}`,
+        role: 'assistant',
+        content: response.response_text,
+        timestamp: new Date(),
+        contextData: response.context_data
+      };
+
+      setMessages(prev => [...prev, assistantMsg]);
+    } catch (error) {
+      console.error('Erro ao enviar mensagem:', error);
+      
+      const errorMsg: Message = {
+        id: `msg-err-${Date.now()}`,
+        role: 'assistant',
+        content: 'Desculpe, tive um problema ao processar sua solicitação. Verifique se o backend está rodando.',
+        timestamp: new Date()
+      };
+      
+      setMessages(prev => [...prev, errorMsg]);
+    } finally {
+      setIsTyping(false);
+    }
+  }, [pipeline, sessionId]);
 
   return {
     messages,

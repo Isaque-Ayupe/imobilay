@@ -22,7 +22,7 @@ from layer_2_orchestrator.response_verbalizer import ResponseVerbalizer
 from layer_3_learning.memory_manager import MemoryManager
 from layer_3_learning.observability_layer import ObservabilityLayer
 
-from models.context import ContextStore
+from models.context import ContextStore, UserProfile
 
 logger = logging.getLogger(__name__)
 
@@ -62,9 +62,14 @@ class ImobilayPipeline:
         # 1. Recuperar memórias (Sessão / Usuário)
         # Opcional - injeção na mensagem caso precisemos de histórico
         session_state = await self.memory.get_session(session_id)
+        user_profile = UserProfile(id=user_id)
         
         # 2. Layer 1: Input Processing
-        processed_input = self.processor.process(message, session_id, user_id)
+        processed_input = self.processor.process(
+            raw_message=message,
+            session_id=session_id,
+            user_profile=user_profile,
+        )
         
         # 3. Layer 1: Routing
         routing = await self.router.route(processed_input.message)

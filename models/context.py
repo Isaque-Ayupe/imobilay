@@ -30,6 +30,7 @@ class ErrorSeverity(str, Enum):
 class GateRecommendation(str, Enum):
     PROCEED = "proceed"
     PROCEED_WITH_WARNING = "proceed_with_warning"
+    ASK_MORE_INFO = "return_limitation"
     RETURN_LIMITATION = "return_limitation"
 
 
