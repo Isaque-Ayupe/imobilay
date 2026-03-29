@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MapPin, Maximize2, ExternalLink, BookmarkPlus, ArrowRightLeft } from 'lucide-react';
 import type { Property, ValuationResult, InvestmentResult, Opportunity, RankingJustificativa } from '../../types';
@@ -13,7 +13,10 @@ interface PropertyAnalysisCardProps {
   ranking?: RankingJustificativa;
 }
 
-export function PropertyAnalysisCard({ 
+// ⚡ Bolt Optimization:
+// React.memo prevents O(N) unnecessary re-renders of property cards
+// when parent chat lists update with typing indicators or pipeline processing.
+export const PropertyAnalysisCard = memo(function PropertyAnalysisCard({
   property, 
   valuation, 
   investment,
@@ -182,4 +185,4 @@ export function PropertyAnalysisCard({
       </div>
     </motion.div>
   );
-}
+});
