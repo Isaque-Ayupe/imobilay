@@ -7,7 +7,10 @@ interface ChatInputProps {
   disabled?: boolean;
 }
 
-export function ChatInput({ onSendMessage, disabled }: ChatInputProps) {
+// ⚡ Bolt Optimization:
+// React.memo prevents the ChatInput from re-rendering continuously while the pipeline
+// is active or when other unrelated chat states change in the parent App.
+export const ChatInput = React.memo(function ChatInput({ onSendMessage, disabled }: ChatInputProps) {
   const [text, setText] = React.useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -72,4 +75,4 @@ export function ChatInput({ onSendMessage, disabled }: ChatInputProps) {
       </div>
     </div>
   );
-}
+});
