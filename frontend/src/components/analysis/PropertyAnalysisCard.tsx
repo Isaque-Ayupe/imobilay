@@ -16,6 +16,17 @@ interface PropertyAnalysisCardProps {
 // ⚡ Bolt Optimization:
 // React.memo prevents the PropertyAnalysisCard from unnecessarily re-rendering
 // when parent components update without changing the property props.
+// ⚡ Bolt Optimization:
+// Move Intl.NumberFormat instance outside the component to prevent
+// recreating this expensive object on every render of every card.
+const currencyFormatter = new Intl.NumberFormat('pt-BR', {
+  style: 'currency',
+  currency: 'BRL',
+  maximumFractionDigits: 0
+});
+
+const formatCurrency = (value: number) => currencyFormatter.format(value);
+
 export const PropertyAnalysisCard = memo(function PropertyAnalysisCard({
   property, 
   valuation, 
@@ -24,9 +35,6 @@ export const PropertyAnalysisCard = memo(function PropertyAnalysisCard({
   ranking 
 }: PropertyAnalysisCardProps) {
   const [expanded, setExpanded] = useState(false);
-
-  const formatCurrency = (value: number) => 
-    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(value);
 
   return (
     <motion.div 
