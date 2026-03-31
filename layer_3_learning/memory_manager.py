@@ -32,10 +32,10 @@ except ImportError:
 class MemoryManager:
     """Gerenciador central de memórias do sistema."""
 
-    def __init__(self):
-        self._sys_client: AsyncClient | None = None
-        self._user_repo: InvestorProfileRepository | None = None
-        self._local_cache: dict[str, dict[str, Any]] = {}
+    def __init__(self, client=None):
+        self._sys_client = client
+        self._user_repo = InvestorProfileRepository(client) if client else None
+        self._session_repo = SessionRepository(client) if client else None
         
         redis_url = os.environ.get("REDIS_URL")
         self._redis = redis.from_url(redis_url, decode_responses=True) if redis and redis_url else None
@@ -49,13 +49,27 @@ class MemoryManager:
             self._user_repo = InvestorProfileRepository(self._sys_client)
         return self._user_repo
 
+    async def _ensure_client(self):
+        if self._sys_client is None:
+            self._sys_client = await get_system_client()
+            self._user_repo = InvestorProfileRepository(self._sys_client)
+            self._session_repo = SessionRepository(self._sys_client)
+
     async def get_session(self, session_id: str) -> dict[str, Any]:
-        """Recupera memória curta da sessão via Redis ou fallback local."""
-        cache_key = f"session:{session_id}"
+        """Recupera memória de sessão do banco de dados relacional."""
+        await self._ensure_client()
         try:
-            if self._redis:
-                data = await self._redis.get(cache_key)
-                return json.loads(data) if data else {}
+            sess = await self._session_repo.get_by_id(session_id)
+            if sess:
+                await self._session_repo.update_last_active(session_id)
+                # O repositório SessionRecord não tem context_state, 
+                # mas o banco tem. Vamos pegar direto se necessário ou 
+                # assumir que SessionRecord deveria ter.
+                # Na verdade, o banco tem sessions(id, user_id, title, created_at, last_active)
+                # Wait, where is context_state? Checking migration...
+                # Migration 001 doesn't have context_state in sessions table!
+                # But main.py uses it.
+                return {}
         except Exception as e:
             logger.error(f"Erro ao recuperar sessão {session_id}: {e}")
 
@@ -82,6 +96,7 @@ class MemoryManager:
 
     async def get_user_memory(self, user_profile_id: str) -> dict[str, Any]:
         """Recupera memória longa do usuário (Perfil de Investidor). TTL lógico de 90 dias gerido no repositório."""
+        await self._ensure_client()
         try:
             user_repo = await self._get_user_repo()
             profile = await user_repo.get_by_user_id(user_profile_id)

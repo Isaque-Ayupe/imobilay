@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MapPin, Maximize2, ExternalLink, BookmarkPlus, ArrowRightLeft } from 'lucide-react';
 import type { Property, ValuationResult, InvestmentResult, Opportunity, RankingJustificativa } from '../../types';
@@ -13,7 +13,10 @@ interface PropertyAnalysisCardProps {
   ranking?: RankingJustificativa;
 }
 
-export function PropertyAnalysisCard({ 
+// ⚡ Bolt Optimization:
+// React.memo prevents the PropertyAnalysisCard from unnecessarily re-rendering
+// when parent components update without changing the property props.
+export const PropertyAnalysisCard = memo(function PropertyAnalysisCard({
   property, 
   valuation, 
   investment,
@@ -147,8 +150,9 @@ export function PropertyAnalysisCard({
                 </div>
               )}
               <div className="pt-2">
+                {/* 🛡️ Sentinel: Sanitize URL to prevent javascript: XSS */}
                 <a 
-                  href={property.url || '#'} 
+                  href={property.url?.startsWith('http') ? property.url : '#'}
                   target="_blank" 
                   rel="noreferrer"
                   className="flex items-center gap-1.5 text-blue hover:text-blue-light transition-colors text-xs font-medium w-fit"
@@ -182,4 +186,4 @@ export function PropertyAnalysisCard({
       </div>
     </motion.div>
   );
-}
+});

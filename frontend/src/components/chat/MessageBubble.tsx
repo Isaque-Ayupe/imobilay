@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { Message } from '../../types';
 import type { PipelineStep } from '../../hooks/usePipeline';
 import { motion } from 'framer-motion';
@@ -13,7 +14,10 @@ interface MessageBubbleProps {
   isProcessing?: boolean;
 }
 
-export function MessageBubble({ message, pipelineSteps, isProcessing }: MessageBubbleProps) {
+// ⚡ Bolt Optimization:
+// React.memo prevents O(N) unnecessary re-renders of all previous messages
+// whenever the active pipeline status or typing indicator updates in the parent MessageList.
+export const MessageBubble = memo(function MessageBubble({ message, pipelineSteps, isProcessing }: MessageBubbleProps) {
   const isUser = message.role === 'user';
 
   if (isUser) {
@@ -87,4 +91,4 @@ export function MessageBubble({ message, pipelineSteps, isProcessing }: MessageB
       )}
     </div>
   );
-}
+});

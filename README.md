@@ -31,6 +31,25 @@ O escopo está estruturado em 3 grandes camadas no Backend e uma interface Front
 
 ---
 
+## 📂 Estrutura do Projeto
+
+O projeto está organizado em camadas e diretórios especializados para garantir a manutenibilidade e escalabilidade:
+
+- **[.agents/](file:///c:/.agents/Readme.md)**: Configurações e habilidades (skills) para os agentes de IA.
+- **[context/](file:///c:/context/Readme.md)**: Documentação de contexto e escopo do projeto.
+- **[database/](file:///c:/database/Readme.md)**: Camada de dados, incluindo clientes Supabase e repositórios.
+- **[directives/](file:///c:/directives/Readme.md)**: SOPs (Standard Operating Procedures) e diretrizes de desenvolvimento.
+- **[execution/](file:///c:/execution/Readme.md)**: Scripts utilitários para setup, migrações e execução do pipeline.
+- **[frontend/](file:///c:/frontend/Readme.md)**: Interface do usuário desenvolvida em React + Vite + TypeScript.
+- **[layer_1_input/](file:///c:/layer_1_input/Readme.md)**: Processamento de entrada, roteamento semântico e resolução de DAG.
+- **[layer_2_orchestrator/](file:///c:/layer_2_orchestrator/Readme.md)**: Orquestração de agentes especialistas e gestão de resiliência.
+- **[layer_3_learning/](file:///c:/layer_3_learning/Readme.md)**: Memória, aprendizado contínuo e observabilidade.
+- **[models/](file:///c:/models/Readme.md)**: Definições de modelos de dados e contratos entre camadas.
+- **[supabase/](file:///c:/supabase/Readme.md)**: Configurações e migrações do Supabase CLI.
+- **[tests/](file:///c:/tests/Readme.md)**: Suíte de testes unitários e de integração.
+
+---
+
 ## 🚀 Como Rodar o Projeto Localmente
 
 O IMOBILAY é desacoplado (API Backend + SPA Frontend). Siga os passos abaixo para testá-lo ou contribuir.

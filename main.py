@@ -9,6 +9,9 @@ from __future__ import annotations
 
 import logging
 from uuid import uuid4
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from layer_1_input.input_processor import InputProcessor
 from layer_1_input.semantic_router import SemanticRouter

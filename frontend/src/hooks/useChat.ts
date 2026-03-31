@@ -16,6 +16,9 @@ export function useChat() {
   const [sessionId] = useState(`sess-${Date.now()}`);
   
   const pipeline = usePipeline();
+  // ⚡ Bolt Optimization: Destructure startPipeline so we don't depend on the entire
+  // changing pipeline object in the useCallback, preventing sendMessage recreation.
+  const { startPipeline } = pipeline;
 
   const sendMessage = useCallback(async (content: string) => {
     if (!content.trim()) return;

@@ -22,7 +22,7 @@ from models.context import ContextStore, GateResult, GateRecommendation
 
 # ── Constantes ───────────────────────────────────────────────
 
-MODEL_NAME = "gemini-2.5-pro"
+MODEL_NAME = "gemini-1.5-flash"
 TEMPERATURE = 0.3
 MAX_TOKENS = 1500
 MAX_RETRIES = 2
