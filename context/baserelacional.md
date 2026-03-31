@@ -267,31 +267,31 @@ ALTER TABLE saved_properties    ENABLE ROW LEVEL SECURITY;
 -- Policies: cada usuário só acessa seus próprios dados
 CREATE POLICY "user vê e edita próprio perfil"
     ON user_profiles FOR ALL
-    USING (auth.uid() = id);
+    USING ((select auth.uid()) = id);
 
 CREATE POLICY "user vê e edita próprio perfil de investidor"
     ON investor_profiles FOR ALL
-    USING (auth.uid() = user_id);
+    USING ((select auth.uid()) = user_id);
 
 CREATE POLICY "user vê e edita próprias sessões"
     ON sessions FOR ALL
-    USING (auth.uid() = user_id);
+    USING ((select auth.uid()) = user_id);
 
 CREATE POLICY "user vê próprias mensagens"
     ON messages FOR ALL
     USING (
         session_id IN (
-            SELECT id FROM sessions WHERE user_id = auth.uid()
+            SELECT id FROM sessions WHERE user_id = (select auth.uid())
         )
     );
 
 CREATE POLICY "user vê próprio feedback"
     ON feedback_records FOR ALL
-    USING (auth.uid() = user_id);
+    USING ((select auth.uid()) = user_id);
 
 CREATE POLICY "user vê próprios imóveis salvos"
     ON saved_properties FOR ALL
-    USING (auth.uid() = user_id);
+    USING ((select auth.uid()) = user_id);
 ```
 
 ---
