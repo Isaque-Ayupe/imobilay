@@ -122,6 +122,7 @@ DAG_TEMPLATES = {
     "buscar_imoveis":  _dag_buscar_imoveis,
     "analisar_imovel": _dag_analisar_imovel,
     "investimento":    _dag_investimento,
+    "investment_analysis": _dag_investimento,
     "refinar_busca":   _dag_refinar_busca,
 }
 
@@ -153,11 +154,25 @@ class DAGResolver:
 
     def _resolve_single(self, intent: str) -> ExecutionDAG:
         """Resolve DAG para um intent simples."""
+        if intent in {"greeting", "saudacao", "saudação", "smalltalk"}:
+            return ExecutionDAG(
+                nodes=[],
+                edges=[],
+                execution_groups=[],
+                estimated_steps=0,
+                intent=intent,
+            )
+
         builder = DAG_TEMPLATES.get(intent)
 
         if builder is None:
-            # Fallback: se intent desconhecido, usar buscar_imoveis como default
-            builder = DAG_TEMPLATES["buscar_imoveis"]
+            return ExecutionDAG(
+                nodes=[],
+                edges=[],
+                execution_groups=[],
+                estimated_steps=0,
+                intent=intent,
+            )
 
         nodes, edges, groups = builder()
 

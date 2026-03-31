@@ -26,7 +26,12 @@ class FeedbackCollector:
     """Coleta e armazena feedbacks dos usuários."""
 
     def __init__(self, repository: FeedbackRepository | None = None):
-        self._repo = repository or FeedbackRepository(get_system_client())
+        self._repo = repository
+
+    async def _get_repo(self) -> FeedbackRepository:
+        if self._repo is None:
+            self._repo = FeedbackRepository(await get_system_client())
+        return self._repo
 
     async def collect_explicit(
         self,
@@ -41,7 +46,8 @@ class FeedbackCollector:
             raise ValueError("Rating deve ser entre 1 e 5")
 
         try:
-            return await self._repo.save(
+            repo = await self._get_repo()
+            return await repo.save(
                 trace_id=trace_id,
                 user_id=user_id,
                 session_id=session_id,
@@ -86,7 +92,8 @@ class FeedbackCollector:
             return None
 
         try:
-            return await self._repo.save(
+            repo = await self._get_repo()
+            return await repo.save(
                 trace_id=trace_id,
                 user_id=user_id,
                 session_id=session_id,

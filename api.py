@@ -8,6 +8,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Any
+from datetime import datetime
 
 from main import get_pipeline
 
@@ -59,6 +60,34 @@ async def chat_endpoint(req: ChatRequest):
         logger.error(f"Error in chat endpoint: {str(e)}")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail="An internal server error occurred.")
+
+
+@app.get("/api/sessions")
+async def list_sessions(user_id: str):
+    """
+    Retorna as sessões de chat do usuário.
+    """
+    try:
+        from database.client import get_supabase
+        from database.repositories.session_repository import SessionRepository
+        
+        supabase = await get_supabase()
+        repo = SessionRepository(supabase)
+        sessions = await repo.list_by_user(user_id)
+        
+        return [
+            {
+                "id": str(s.id),
+                "title": s.title or "Nova conversa",
+                "timestamp": s.last_active,
+                "isToday": s.last_active.date() == datetime.now().date(),
+                # Lógica simples para isYesterday/isToday para o frontend
+            } for s in sessions
+        ]
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/health")

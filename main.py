@@ -64,18 +64,15 @@ class ImobilayPipeline:
 
         # 1. Recuperar memórias (Sessão / Usuário)
         # Opcional - injeção na mensagem caso precisemos de histórico
-        await self.memory.get_session(session_id)
-        user_mem = await self.memory.get_user_memory(user_id)
-        
-        # Construir UserProfile para o InputProcessor
+        session_state = await self.memory.get_session(session_id)
         user_profile = UserProfile(id=user_id)
-        if user_mem:
-            user_profile.preferences.max_budget = user_mem.get("price_max")
-            user_profile.preferences.preferred_areas = user_mem.get("preferred_areas", [])
-            user_profile.preferences.investment_goal = user_mem.get("investment_goal")
         
         # 2. Layer 1: Input Processing
-        processed_input = self.processor.process(message, session_id, user_profile)
+        processed_input = self.processor.process(
+            raw_message=message,
+            session_id=session_id,
+            user_profile=user_profile,
+        )
         
         # 3. Layer 1: Routing
         routing = await self.router.route(processed_input.message)
