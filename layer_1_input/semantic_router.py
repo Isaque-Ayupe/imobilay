@@ -96,11 +96,32 @@ class SemanticRouter:
             self._use_fallback = False
 
             examples_by_intent = intent_examples or DEFAULT_INTENT_EXAMPLES
+
+            # Batch encoding optimization: flatten all examples into a single list
+            # Sentence-transformers is optimized for batched inputs.
+            all_intents = []
+            all_examples = []
+            counts = []
+
             for intent_name, examples in examples_by_intent.items():
-                embeddings = self._model.encode(examples)
-                self._intent_embeddings[intent_name] = [
-                    emb / np.linalg.norm(emb) for emb in embeddings
-                ]
+                all_intents.append(intent_name)
+                all_examples.extend(examples)
+                counts.append(len(examples))
+
+            if all_examples:
+                # Encode all examples in a single batch
+                embeddings = self._model.encode(all_examples)
+
+                # Reshape and normalize
+                idx = 0
+                for i, intent_name in enumerate(all_intents):
+                    count = counts[i]
+                    intent_emb = embeddings[idx:idx+count]
+                    self._intent_embeddings[intent_name] = [
+                        emb / np.linalg.norm(emb) for emb in intent_emb
+                    ]
+                    idx += count
+
             self._embeddings_cache = dict(self._intent_embeddings)
 
         except ImportError:
