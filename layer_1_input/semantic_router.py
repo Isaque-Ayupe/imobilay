@@ -14,9 +14,12 @@ from __future__ import annotations
 
 import numpy as np
 from typing import Any
+import structlog
 
 from models.routing import RoutingResult
+from database.repositories.intent_repository import IntentRepository
 
+logger = structlog.get_logger(__name__)
 
 # ── Constantes ───────────────────────────────────────────────
 
@@ -84,48 +87,72 @@ class SemanticRouter:
 
     async def initialize(self, intent_examples: dict[str, list[str]] | None = None):
         """
-        Inicializa o modelo e computa embeddings dos intents.
+        Inicializa o modelo e carrega embeddings dos intents.
+
+        Se `intent_examples` não for fornecido, tenta buscar os exemplos reais
+        do banco de dados (tabela intent_embeddings). Se falhar ou estiver vazio,
+        faz fallback para DEFAULT_INTENT_EXAMPLES.
 
         Args:
-            intent_examples: dict de intent_name → lista de frases exemplo.
-                             Se None, usa embeddings do banco via seed_intents.py.
+            intent_examples: dict opcional de intent_name → lista de frases exemplo.
         """
         try:
             from sentence_transformers import SentenceTransformer
             self._model = SentenceTransformer(MODEL_NAME)
             self._use_fallback = False
 
-            examples_by_intent = intent_examples or DEFAULT_INTENT_EXAMPLES
+            # Tenta buscar intents do banco se não fornecidos
+            db_intents_loaded = False
+            if intent_examples is None:
+                repo = IntentRepository()
+                db_data = await repo.get_all_intents_and_embeddings()
 
-            # Batch encoding optimization: flatten all examples into a single list
-            # Sentence-transformers is optimized for batched inputs.
-            all_intents = []
-            all_examples = []
-            counts = []
+                if db_data:
+                    # Carrega as embeddings já computadas do banco
+                    for intent_name, items in db_data.items():
+                        # Converte listas para numpy arrays e normaliza
+                        self._intent_embeddings[intent_name] = [
+                            np.array(item["embedding"]) / np.linalg.norm(np.array(item["embedding"]))
+                            for item in items if item.get("embedding")
+                        ]
+                    db_intents_loaded = True
+                    logger.info("Intents e embeddings carregados do banco de dados com sucesso.")
 
-            for intent_name, examples in examples_by_intent.items():
-                all_intents.append(intent_name)
-                all_examples.extend(examples)
-                counts.append(len(examples))
+            # Se não conseguiu carregar do banco, gera em tempo de execução
+            if not db_intents_loaded:
+                examples_by_intent = intent_examples or DEFAULT_INTENT_EXAMPLES
+                logger.info("Usando exemplos de intents locais (batch encoding).")
 
-            if all_examples:
-                # Encode all examples in a single batch
-                embeddings = self._model.encode(all_examples)
+                # Batch encoding optimization: flatten all examples into a single list
+                # Sentence-transformers is optimized for batched inputs.
+                all_intents = []
+                all_examples = []
+                counts = []
 
-                # Reshape and normalize
-                idx = 0
-                for i, intent_name in enumerate(all_intents):
-                    count = counts[i]
-                    intent_emb = embeddings[idx:idx+count]
-                    self._intent_embeddings[intent_name] = [
-                        emb / np.linalg.norm(emb) for emb in intent_emb
-                    ]
-                    idx += count
+                for intent_name, examples in examples_by_intent.items():
+                    all_intents.append(intent_name)
+                    all_examples.extend(examples)
+                    counts.append(len(examples))
+
+                if all_examples:
+                    # Encode all examples in a single batch
+                    embeddings = self._model.encode(all_examples)
+
+                    # Reshape and normalize
+                    idx = 0
+                    for i, intent_name in enumerate(all_intents):
+                        count = counts[i]
+                        intent_emb = embeddings[idx:idx+count]
+                        self._intent_embeddings[intent_name] = [
+                            emb / np.linalg.norm(emb) for emb in intent_emb
+                        ]
+                        idx += count
 
             self._embeddings_cache = dict(self._intent_embeddings)
 
         except ImportError:
             self._use_fallback = True
+            logger.warning("sentence-transformers indisponível. Usando fallback baseado em keywords.")
             self._embeddings_cache = {
                 intent_name: [np.array([1.0])]
                 for intent_name in (intent_examples or DEFAULT_INTENT_EXAMPLES)
