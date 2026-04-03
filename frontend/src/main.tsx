@@ -23,8 +23,8 @@ class ErrorBoundary extends Component<{children: ReactNode}, {hasError: boolean,
       return (
         <div style={{ padding: 20, color: 'red', backgroundColor: '#fee' }}>
           <h2>Algo deu errado.</h2>
-          <pre>{this.state.error?.toString()}</pre>
-          <pre>{this.state.error?.stack}</pre>
+          {/* Security: Prevent information leakage by removing stack traces from UI */}
+          <p>Ocorreu um erro inesperado. Por favor, tente recarregar a página.</p>
         </div>
       );
     }
