@@ -31,9 +31,21 @@ CIRCUIT_OPEN_DURATION_S = 30    # tempo em OPEN antes de HALF_OPEN
 class ResilienceManager:
     """Gerencia resiliência por agente: retry, fallback e circuit breaker."""
 
-    def __init__(self):
+    def __init__(
+        self,
+        failure_threshold: int = CIRCUIT_FAILURE_THRESHOLD,
+        open_duration_s: int = CIRCUIT_OPEN_DURATION_S,
+        window_s: int = CIRCUIT_WINDOW_S,
+        max_retries: int = MAX_RETRIES,
+        backoff_base_ms: int = BACKOFF_BASE_MS,
+    ):
         self._health: dict[str, AgentHealthStats] = {}
         self._failure_timestamps: dict[str, list[float]] = {}
+        self._failure_threshold = failure_threshold
+        self._open_duration_s = open_duration_s
+        self._window_s = window_s
+        self._max_retries = max_retries
+        self._backoff_base_ms = backoff_base_ms
 
     async def call_with_resilience(
         self,
@@ -71,7 +83,7 @@ class ResilienceManager:
 
         # ── Retry loop ──
         last_error = None
-        for attempt in range(MAX_RETRIES):
+        for attempt in range(self._max_retries):
             try:
                 health.total_calls += 1
                 patch = await agent_fn(context)
@@ -93,8 +105,8 @@ class ResilienceManager:
                     break
 
                 # Backoff exponencial: 100ms, 400ms, 1600ms
-                if attempt < MAX_RETRIES - 1:
-                    delay_ms = BACKOFF_BASE_MS * (4 ** attempt)
+                if attempt < self._max_retries - 1:
+                    delay_ms = self._backoff_base_ms * (4 ** attempt)
                     await asyncio.sleep(delay_ms / 1000)
 
         # ── Falha definitiva → fallback ──
@@ -117,6 +129,16 @@ class ResilienceManager:
             return patch, AgentStatus.FALLBACK, error
 
         return None, AgentStatus.FAILED, error
+
+    async def can_execute(self, agent_id: str) -> bool:
+        return self._check_circuit(agent_id) != CircuitState.OPEN
+
+    async def record_failure(self, agent_id: str) -> None:
+        self._record_failure(agent_id)
+
+    async def get_health_stats(self, agent_id: str) -> AgentHealthStats:
+        self._check_circuit(agent_id)
+        return self._get_or_create_health(agent_id)
 
     def get_circuit_state(self, agent_id: str) -> CircuitState:
         """Retorna o estado atual do circuit breaker para um agente."""
@@ -144,7 +166,7 @@ class ResilienceManager:
             # Verificar se já passou o tempo de cooldown
             if health.last_failure_at:
                 elapsed = (datetime.utcnow() - health.last_failure_at).total_seconds()
-                if elapsed >= CIRCUIT_OPEN_DURATION_S:
+                if elapsed >= self._open_duration_s:
                     health.circuit_state = CircuitState.HALF_OPEN
                     return CircuitState.HALF_OPEN
             return CircuitState.OPEN
@@ -166,13 +188,13 @@ class ResilienceManager:
         self._failure_timestamps[agent_id].append(now)
 
         # Limpar falhas fora da janela de observação
-        cutoff = now - CIRCUIT_WINDOW_S
+        cutoff = now - self._window_s
         self._failure_timestamps[agent_id] = [
             t for t in self._failure_timestamps[agent_id] if t > cutoff
         ]
 
         # Se atingiu o threshold na janela → abrir circuit breaker
-        if len(self._failure_timestamps[agent_id]) >= CIRCUIT_FAILURE_THRESHOLD:
+        if len(self._failure_timestamps[agent_id]) >= self._failure_threshold:
             health.circuit_state = CircuitState.OPEN
 
     def _is_transient_error(self, error: Exception) -> bool:

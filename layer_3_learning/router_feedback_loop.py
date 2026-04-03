@@ -20,7 +20,12 @@ class RouterFeedbackLoop:
     """Retroalimenta o SemanticRouter com dados de execução."""
 
     def __init__(self):
-        self._sys_client = get_system_client()
+        self._sys_client = None
+
+    async def _get_system_client(self):
+        if self._sys_client is None:
+            self._sys_client = await get_system_client()
+        return self._sys_client
 
     async def recalibrate_weights(self, batch_size: int = 100) -> None:
         """

@@ -53,6 +53,11 @@ class DAGNode(BaseModel):
     dependencies: list[str] = Field(default_factory=list)  # IDs de nós que devem completar antes
     condition: str | None = None             # predicado para nós condicionais (ex: "properties.length > 0")
 
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, str):
+            return self.agent_id == other
+        return super().__eq__(other)
+
 
 class DAGEdge(BaseModel):
     """Aresta no grafo de execução — relação entre dois nós."""
