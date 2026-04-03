@@ -65,27 +65,31 @@ export const MessageBubble = memo(function MessageBubble({ message, pipelineStep
             </div>
             
             {/* Context Data (Análises Imobiliárias) */}
-            {message.contextData?.properties && (
-              <div className="mt-6 space-y-6">
-                {message.contextData.properties.map(property => {
-                  const valuation = message.contextData?.analysis.valuation.find(v => v.property_id === property.id);
-                  const investment = message.contextData?.analysis.investment.find(i => i.property_id === property.id);
-                  const opportunity = message.contextData?.analysis.opportunities.find(o => o.property_id === property.id);
-                  const ranking = message.contextData?.analysis.ranking?.ranking.find(r => r.property_id === property.id);
+            {message.contextData?.properties && (() => {
+              // ⚡ Bolt Optimization:
+              // Replace O(N²) nested loop `.find()` lookups inside `.map()`
+              // with O(N) hash map lookups.
+              const analysis = message.contextData.analysis;
+              const valMap = new Map(analysis.valuation?.map(v => [v.property_id, v]));
+              const invMap = new Map(analysis.investment?.map(i => [i.property_id, i]));
+              const oppMap = new Map(analysis.opportunities?.map(o => [o.property_id, o]));
+              const rankMap = new Map(analysis.ranking?.ranking?.map(r => [r.property_id, r]));
 
-                  return (
+              return (
+                <div className="mt-6 space-y-6">
+                  {message.contextData.properties.map(property => (
                     <PropertyAnalysisCard 
                       key={property.id}
                       property={property}
-                      valuation={valuation}
-                      investment={investment}
-                      opportunity={opportunity}
-                      ranking={ranking}
+                      valuation={valMap.get(property.id)}
+                      investment={invMap.get(property.id)}
+                      opportunity={oppMap.get(property.id)}
+                      ranking={rankMap.get(property.id)}
                     />
-                  );
-                })}
-              </div>
-            )}
+                  ))}
+                </div>
+              );
+            })()}
           </div>
         </motion.div>
       )}
