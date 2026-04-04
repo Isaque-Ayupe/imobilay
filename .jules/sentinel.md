@@ -7,3 +7,8 @@
 **Vulnerability:** Performance degradation and potential DoS vulnerability due to `auth.uid()` being called per-row in Row Level Security (RLS) policies. In a large table, this would mean executing the function repeatedly for every scanned row.
 **Learning:** `auth.uid()` evaluates per row when used directly in the `USING` clause, turning what should be a fast indexed query into a slow sequential scan.
 **Prevention:** Always wrap `auth.uid()` (and similar functions) in a subselect `(select auth.uid())` when writing RLS policies. This ensures the function is evaluated only once and its result is cached for the entire query execution.
+
+## 2024-04-04 - FastAPI Missing Security Headers Defense-in-Depth
+**Vulnerability:** The API lacked standard HTTP security headers, leaving clients potentially exposed to clickjacking, MIME-sniffing, and cross-site scripting (XSS) attacks.
+**Learning:** While React handles XSS relatively well by default, APIs must implement defense-in-depth. Failing to set headers like `X-Frame-Options` and `Strict-Transport-Security` leaves applications unnecessarily vulnerable to common web attacks.
+**Prevention:** Always implement a security header middleware (e.g., using FastAPI's `@app.middleware("http")`) to universally enforce `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `X-XSS-Protection: 1; mode=block`, and `Strict-Transport-Security`.
