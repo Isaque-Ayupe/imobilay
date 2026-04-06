@@ -12,5 +12,5 @@ async def test_orchestratorEmptyDag():
 
     result = await orch.execute(dag, ctx)
     assert result.total_duration_ms >= 0
-    # The dag defaults to 'buscar_imoveis', which has 5 agents
-    assert len(result.execution_trace) > 0
+    # The dag defaults to empty for greetings, so trace should be empty
+    assert len(result.execution_trace) == 0
