@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import type { Message } from '../../types';
 import type { PipelineStep } from '../../hooks/usePipeline';
 import { motion } from 'framer-motion';
@@ -18,6 +18,25 @@ interface MessageBubbleProps {
 // React.memo prevents O(N) unnecessary re-renders of all previous messages
 // whenever the active pipeline status or typing indicator updates in the parent MessageList.
 export const MessageBubble = memo(function MessageBubble({ message, pipelineSteps, isProcessing }: MessageBubbleProps) {
+
+  // ⚡ Bolt Optimization:
+  // Pre-compute lookup maps for O(1) access instead of O(N) array.find() on every render
+  const analysisMaps = useMemo(() => {
+    const valuationMap = new Map();
+    const investmentMap = new Map();
+    const opportunityMap = new Map();
+    const rankingMap = new Map();
+
+    if (message.contextData?.analysis) {
+      message.contextData.analysis.valuation?.forEach(v => valuationMap.set(v.property_id, v));
+      message.contextData.analysis.investment?.forEach(i => investmentMap.set(i.property_id, i));
+      message.contextData.analysis.opportunities?.forEach(o => opportunityMap.set(o.property_id, o));
+      message.contextData.analysis.ranking?.ranking?.forEach(r => rankingMap.set(r.property_id, r));
+    }
+
+    return { valuationMap, investmentMap, opportunityMap, rankingMap };
+  }, [message.contextData]);
+
   const isUser = message.role === 'user';
 
   if (isUser) {
@@ -68,10 +87,10 @@ export const MessageBubble = memo(function MessageBubble({ message, pipelineStep
             {message.contextData?.properties && (
               <div className="mt-6 space-y-6">
                 {message.contextData.properties.map(property => {
-                  const valuation = message.contextData?.analysis.valuation.find(v => v.property_id === property.id);
-                  const investment = message.contextData?.analysis.investment.find(i => i.property_id === property.id);
-                  const opportunity = message.contextData?.analysis.opportunities.find(o => o.property_id === property.id);
-                  const ranking = message.contextData?.analysis.ranking?.ranking.find(r => r.property_id === property.id);
+                  const valuation = analysisMaps.valuationMap.get(property.id);
+                  const investment = analysisMaps.investmentMap.get(property.id);
+                  const opportunity = analysisMaps.opportunityMap.get(property.id);
+                  const ranking = analysisMaps.rankingMap.get(property.id);
 
                   return (
                     <PropertyAnalysisCard 
