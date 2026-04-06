@@ -36,6 +36,7 @@ class MemoryManager:
         self._sys_client = client
         self._user_repo = InvestorProfileRepository(client) if client else None
         self._session_repo = SessionRepository(client) if client else None
+        self._local_cache = {}
         
         redis_url = os.environ.get("REDIS_URL")
         self._redis = redis.from_url(redis_url, decode_responses=True) if redis and redis_url else None
@@ -73,6 +74,7 @@ class MemoryManager:
         except Exception as e:
             logger.error(f"Erro ao recuperar sessão {session_id}: {e}")
 
+        cache_key = f"session:{session_id}"
         entry = self._local_cache.get(cache_key)
         if entry and entry["expires"] > time.time():
             return entry["value"]

@@ -24,6 +24,6 @@ def test_dag_resolver_fallback():
     )
     dag = resolver.resolve(routing)
     
-    # Defaults to buscar_imoveis
-    assert len(dag.nodes) > 0
-    assert "web_scraper" in [n.agent_id for n in dag.nodes]
+    # Defaults to empty dag for smalltalk/greeting
+    assert len(dag.nodes) == 0
+    assert len(dag.execution_groups) == 0
