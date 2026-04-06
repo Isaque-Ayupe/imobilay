@@ -2,6 +2,7 @@
 .env
 .env.local
 .env.*.local
+openclaude.ps1
 
 # ── Python ────────────────────────────────────
 __pycache__/
