@@ -36,10 +36,10 @@ class SessionRepository:
             self._db.table("sessions")
             .select("*")
             .eq("id", session_id)
-            .maybe_single()
+            .limit(1)
             .execute()
         )
-        return self._map(result.data) if result.data else None
+        return self._map(result.data[0]) if result.data else None
 
     async def list_by_user(self, user_id: str, limit: int = 50) -> list[SessionRecord]:
         result = await (

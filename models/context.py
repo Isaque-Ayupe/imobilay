@@ -178,9 +178,17 @@ class ContextStore(BaseModel):
         
         final_key = parts[-1]
 
-        # Atribuir o valor final
+        # Atribuir o valor final com validação Pydantic
         if isinstance(target, BaseModel):
-            setattr(target, final_key, value)
+            # Use Pydantic model validation to ensure proper type coercion
+            # (e.g., list[dict] → list[Property])
+            current_data = target.model_dump()
+            current_data[final_key] = value
+            validated = type(target).model_validate(current_data)
+            # Copy validated fields back to target
+            for k, v in validated.__dict__.items():
+                if not k.startswith("_"):
+                    object.__setattr__(target, k, v)
         elif isinstance(target, dict):
             target[final_key] = value
 

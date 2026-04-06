@@ -19,6 +19,7 @@ from supabase._async.client import AsyncClient
 
 from database.client import get_system_client
 from database.repositories import InvestorProfileRepository
+from database.repositories.session_repository import SessionRepository
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
@@ -36,6 +37,7 @@ class MemoryManager:
         self._sys_client = client
         self._user_repo = InvestorProfileRepository(client) if client else None
         self._session_repo = SessionRepository(client) if client else None
+        self._local_cache: dict[str, dict] = {}
         
         redis_url = os.environ.get("REDIS_URL")
         self._redis = redis.from_url(redis_url, decode_responses=True) if redis and redis_url else None
@@ -57,25 +59,31 @@ class MemoryManager:
 
     async def get_session(self, session_id: str) -> dict[str, Any]:
         """Recupera memória de sessão do banco de dados relacional."""
-        await self._ensure_client()
+        # Tentar Redis primeiro
+        cache_key = f"session:{session_id}"
+        if self._redis:
+            try:
+                data = await self._redis.get(cache_key)
+                if data:
+                    return json.loads(data)
+            except Exception as e:
+                logger.warning(f"Erro ao buscar sessão no Redis: {e}")
+
+        # Fallback para cache local
+        entry = self._local_cache.get(cache_key)
+        if entry and entry["expires"] > time.time():
+            return entry["value"]
+
+        # Tentar banco de dados
         try:
+            await self._ensure_client()
             sess = await self._session_repo.get_by_id(session_id)
             if sess:
                 await self._session_repo.update_last_active(session_id)
-                # O repositório SessionRecord não tem context_state, 
-                # mas o banco tem. Vamos pegar direto se necessário ou 
-                # assumir que SessionRecord deveria ter.
-                # Na verdade, o banco tem sessions(id, user_id, title, created_at, last_active)
-                # Wait, where is context_state? Checking migration...
-                # Migration 001 doesn't have context_state in sessions table!
-                # But main.py uses it.
                 return {}
         except Exception as e:
             logger.error(f"Erro ao recuperar sessão {session_id}: {e}")
 
-        entry = self._local_cache.get(cache_key)
-        if entry and entry["expires"] > time.time():
-            return entry["value"]
         return {}
 
     async def save_session_state(self, session_id: str, state: dict[str, Any]) -> None:

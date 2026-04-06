@@ -49,7 +49,7 @@ class ObservabilityLayer:
         dag_groups_count: int | None = None
     ) -> None:
         """Processa e salva o trace de uma execução do pipeline completo."""
-        await self._ensure_repo()
+        await self._get_repo()
         
         properties_count = len(context.properties)
         valuation_count = len(context.analysis.valuation)

@@ -13,7 +13,7 @@ from supabase._async.client import AsyncClient
 from supabase._async.client import create_client as acreate_client
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(override=True)
 
 # ── Singleton do cliente de sistema ──────────────────────────
 _system_client: AsyncClient | None = None

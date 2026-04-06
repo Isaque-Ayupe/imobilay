@@ -11,7 +11,7 @@ import logging
 from uuid import uuid4
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(override=True)
 
 from layer_1_input.input_processor import InputProcessor
 from layer_1_input.semantic_router import SemanticRouter

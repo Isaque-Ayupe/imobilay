@@ -37,6 +37,7 @@ Thumbs.db
 # ── Credenciais ──────────────────────────────
 credentials.json
 token.json
+.openclaude-profile.json
 
 # ── Logs ─────────────────────────────────────
 *.log
