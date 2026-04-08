@@ -7,3 +7,8 @@
 **Vulnerability:** Performance degradation and potential DoS vulnerability due to `auth.uid()` being called per-row in Row Level Security (RLS) policies. In a large table, this would mean executing the function repeatedly for every scanned row.
 **Learning:** `auth.uid()` evaluates per row when used directly in the `USING` clause, turning what should be a fast indexed query into a slow sequential scan.
 **Prevention:** Always wrap `auth.uid()` (and similar functions) in a subselect `(select auth.uid())` when writing RLS policies. This ensures the function is evaluated only once and its result is cached for the entire query execution.
+
+## 2024-05-15 - Insecure Traceback Logging and Missing Security Headers
+**Vulnerability:** The API chat and session endpoints previously used `traceback.print_exc()` in their exception handlers, exposing stack traces and internal file paths to standard output. Additionally, the FastAPI application lacked standard HTTP security headers, leaving it vulnerable to various browser-based attacks.
+**Learning:** `traceback.print_exc()` does not integrate with standard logging systems and writes raw traceback strings to stdout/stderr. Missing security headers weaken defense-in-depth on the web.
+**Prevention:** Replaced `traceback.print_exc()` with `logger.exception(...)` which securely captures tracebacks into the application's logging pipeline. Implemented a custom FastAPI HTTP middleware to add essential security headers (`X-Content-Type-Options`, `X-Frame-Options`, `X-XSS-Protection`, `Strict-Transport-Security`) to all responses.
