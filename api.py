@@ -11,8 +11,19 @@ from typing import Any
 from datetime import datetime
 
 from main import get_pipeline
+from fastapi import Request
 
 app = FastAPI(title="IMOBILAY API", version="1.0.0")
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
+
 
 # CORS config para Vite frontend dev server (default porta 5173)
 app.add_middleware(
