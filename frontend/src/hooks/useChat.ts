@@ -36,7 +36,7 @@ export function useChat() {
 
     try {
       // Inicia o pipeline de análise visual
-      const pipelinePromise = pipeline.startPipeline();
+      const pipelinePromise = startPipeline();
 
       // Chama a API real do backend
       const response = await chat({
@@ -71,7 +71,7 @@ export function useChat() {
     } finally {
       setIsTyping(false);
     }
-  }, [pipeline, sessionId]);
+  }, [startPipeline, sessionId]);
 
   return {
     messages,
