@@ -7,3 +7,8 @@
 **Vulnerability:** Performance degradation and potential DoS vulnerability due to `auth.uid()` being called per-row in Row Level Security (RLS) policies. In a large table, this would mean executing the function repeatedly for every scanned row.
 **Learning:** `auth.uid()` evaluates per row when used directly in the `USING` clause, turning what should be a fast indexed query into a slow sequential scan.
 **Prevention:** Always wrap `auth.uid()` (and similar functions) in a subselect `(select auth.uid())` when writing RLS policies. This ensures the function is evaluated only once and its result is cached for the entire query execution.
+
+## 2026-03-27 - Missing Security Headers in FastAPI
+**Vulnerability:** The FastAPI application was missing standard HTTP security headers such as `X-Content-Type-Options`, `X-Frame-Options`, `X-XSS-Protection`, and `Strict-Transport-Security`, making the application vulnerable to basic web attacks like clickjacking and MIME-type sniffing.
+**Learning:** By default, FastAPI and Uvicorn do not set defensive security headers. A simple middleware is required to enforce these.
+**Prevention:** Always add a middleware that explicitly sets standard security headers on all responses to provide defense-in-depth against client-side vulnerabilities.
