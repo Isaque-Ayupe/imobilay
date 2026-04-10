@@ -24,7 +24,18 @@ app.add_middleware(
 )
 
 
+
+@app.middleware("http")
+async def add_security_headers(request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
+
 class ChatRequest(BaseModel):
+
     message: str
     user_id: str | None = None
     session_id: str | None = None
@@ -89,7 +100,7 @@ async def chat_endpoint(req: ChatRequest):
             raise HTTPException(status_code=502, detail="Failed to communicate with external dependencies (e.g., LLM or database).")
         else:
             logger.error(f"Error in chat endpoint: {str(e)}")
-            traceback.print_exc()
+            logger.exception(str(e))
             raise HTTPException(status_code=500, detail="An internal server error occurred processing the chat message.")
 
 
@@ -138,7 +149,7 @@ async def list_sessions(user_id: str):
         import logging
         logger = logging.getLogger(__name__)
         logger.error(f"Error fetching sessions for user {user_id}: {str(e)}")
-        traceback.print_exc()
+        logger.exception(str(e))
         raise HTTPException(status_code=500, detail="An internal server error occurred while fetching sessions.")
 
 
