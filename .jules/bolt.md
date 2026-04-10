@@ -5,3 +5,7 @@
 ## 2026-03-27 - Frontend Property Iteration Bottleneck
 **Learning:** When rendering chat messages that contain multiple properties and their associated analyses, using `.find()` inside a `.map()` loop creates an O(N * M) performance bottleneck (N properties * M analysis entries). In React, this runs on every render of the component. Similarly, instantiating `Intl.NumberFormat` inside the render function of the property card introduces unnecessary overhead on every render, which gets magnified by the number of properties displayed.
 **Action:** Extract expensive instantiations (like `Intl.NumberFormat`) outside of React component render functions. Always replace O(N²) nested array `.find()` lookups within `.map()` loops with O(N) `Map` lookups created beforehand.
+
+## 2026-04-10 - Vectorization in Semantic Router
+**Learning:** In the backend, calculating cosine similarity iteratively in Python using list comprehensions is significantly slower than vectorizing the calculations with NumPy matrix operations.
+**Action:** Always maintain an embeddings matrix (using `np.vstack`) to vectorize operations like `np.dot` and use `np.partition(array, -k)[-k:]` for efficient top-k retrieval instead of fully sorting large arrays.
