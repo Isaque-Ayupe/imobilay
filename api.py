@@ -4,15 +4,27 @@ IMOBILAY — FastAPI Server
 Exposição das APIs REST para consumo do Frontend React (Directive 07).
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Any
 from datetime import datetime
+import logging
 
 from main import get_pipeline
 
+logger = logging.getLogger(__name__)
+
 app = FastAPI(title="IMOBILAY API", version="1.0.0")
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
 
 # CORS config para Vite frontend dev server (default porta 5173)
 app.add_middleware(
@@ -50,8 +62,6 @@ async def chat_endpoint(req: ChatRequest):
     e retorna o texto e o estado dos dados (ContextStore dumped) pro frontend usar no card.
     """
     import uuid
-    import logging
-    logger = logging.getLogger(__name__)
 
     # Validate UUID formats if provided
     try:
@@ -80,7 +90,6 @@ async def chat_endpoint(req: ChatRequest):
     except HTTPException:
         raise
     except Exception as e:
-        import traceback
         error_msg = str(e).lower()
 
         # Determine if it's likely a 502/503 external dependency issue
@@ -88,8 +97,7 @@ async def chat_endpoint(req: ChatRequest):
             logger.error(f"External dependency or connection error in chat endpoint: {str(e)}")
             raise HTTPException(status_code=502, detail="Failed to communicate with external dependencies (e.g., LLM or database).")
         else:
-            logger.error(f"Error in chat endpoint: {str(e)}")
-            traceback.print_exc()
+            logger.exception("Error in chat endpoint")
             raise HTTPException(status_code=500, detail="An internal server error occurred processing the chat message.")
 
 
@@ -134,11 +142,7 @@ async def list_sessions(user_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        import traceback
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.error(f"Error fetching sessions for user {user_id}: {str(e)}")
-        traceback.print_exc()
+        logger.exception(f"Error fetching sessions for user {user_id}")
         raise HTTPException(status_code=500, detail="An internal server error occurred while fetching sessions.")
 
 
@@ -155,10 +159,8 @@ class HealthResponse(BaseModel):
 async def health_check():
     """Liveness probe with real connectivity checks."""
     import os
-    import logging
     from database.client import get_system_client
 
-    logger = logging.getLogger(__name__)
     deps_status = DependencyStatus(supabase="unknown", redis="unknown")
     overall_status = "ok"
 
