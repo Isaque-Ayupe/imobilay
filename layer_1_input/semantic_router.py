@@ -82,6 +82,7 @@ class SemanticRouter:
     def __init__(self):
         self._model = None
         self._intent_embeddings: dict[str, list[np.ndarray]] = {}
+        self._embeddings_matrix: dict[str, np.ndarray] = {}
         self._embeddings_cache: dict[str, list[np.ndarray]] | None = None
         self._use_fallback = False
 
@@ -149,6 +150,9 @@ class SemanticRouter:
                         idx += count
 
             self._embeddings_cache = dict(self._intent_embeddings)
+            # Precompute embedding matrices for vectorized operations
+            for intent_name, embeddings in self._intent_embeddings.items():
+                self._embeddings_matrix[intent_name] = np.array(embeddings)
 
         except ImportError:
             self._use_fallback = True
@@ -179,14 +183,18 @@ class SemanticRouter:
         # Calcular scores por intent (média dos top-3 mais similares)
         raw_scores: dict[str, float] = {}
 
-        for intent_name, embeddings in self._intent_embeddings.items():
-            similarities = [
-                float(np.dot(msg_embedding, emb))
-                for emb in embeddings
-            ]
+        for intent_name, matrix in self._embeddings_matrix.items():
+            # Vectorized cosine similarity
+            similarities = np.dot(matrix, msg_embedding)
+
             # Top-3 para robustez (menos sensível a outliers)
-            top_k = sorted(similarities, reverse=True)[:3]
-            raw_scores[intent_name] = sum(top_k) / len(top_k)
+            # Usando np.partition para extrair os top K elementos de forma eficiente O(N)
+            k = min(3, len(similarities))
+            if k > 0:
+                top_k = np.partition(similarities, -k)[-k:]
+                raw_scores[intent_name] = float(np.mean(top_k))
+            else:
+                raw_scores[intent_name] = 0.0
 
         return self._build_result(raw_scores)
 
