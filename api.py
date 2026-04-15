@@ -88,8 +88,7 @@ async def chat_endpoint(req: ChatRequest):
             logger.error(f"External dependency or connection error in chat endpoint: {str(e)}")
             raise HTTPException(status_code=502, detail="Failed to communicate with external dependencies (e.g., LLM or database).")
         else:
-            logger.error(f"Error in chat endpoint: {str(e)}")
-            traceback.print_exc()
+            logger.error(f"Error in chat endpoint: {str(e)}", exc_info=True)
             raise HTTPException(status_code=500, detail="An internal server error occurred processing the chat message.")
 
 
@@ -137,8 +136,7 @@ async def list_sessions(user_id: str):
         import traceback
         import logging
         logger = logging.getLogger(__name__)
-        logger.error(f"Error fetching sessions for user {user_id}: {str(e)}")
-        traceback.print_exc()
+        logger.error(f"Error fetching sessions for user {user_id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="An internal server error occurred while fetching sessions.")
 
 
