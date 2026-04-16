@@ -80,16 +80,14 @@ async def chat_endpoint(req: ChatRequest):
     except HTTPException:
         raise
     except Exception as e:
-        import traceback
         error_msg = str(e).lower()
 
         # Determine if it's likely a 502/503 external dependency issue
         if "timeout" in error_msg or "connection" in error_msg or "supabase" in error_msg or "openai" in error_msg or "llm" in error_msg:
-            logger.error(f"External dependency or connection error in chat endpoint: {str(e)}")
+            logger.exception("External dependency or connection error in chat endpoint")
             raise HTTPException(status_code=502, detail="Failed to communicate with external dependencies (e.g., LLM or database).")
         else:
-            logger.error(f"Error in chat endpoint: {str(e)}")
-            traceback.print_exc()
+            logger.exception("Error in chat endpoint")
             raise HTTPException(status_code=500, detail="An internal server error occurred processing the chat message.")
 
 
@@ -134,11 +132,9 @@ async def list_sessions(user_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        import traceback
         import logging
         logger = logging.getLogger(__name__)
-        logger.error(f"Error fetching sessions for user {user_id}: {str(e)}")
-        traceback.print_exc()
+        logger.exception(f"Error fetching sessions for user {user_id}")
         raise HTTPException(status_code=500, detail="An internal server error occurred while fetching sessions.")
 
 
