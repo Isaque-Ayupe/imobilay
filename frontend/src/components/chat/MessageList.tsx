@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import type { Message } from '../../types';
 import { MessageBubble } from './MessageBubble';
 import type { PipelineStep } from '../../hooks/usePipeline';
@@ -20,6 +20,16 @@ export function MessageList({ messages, isTyping, pipelineSteps, isPipelineActiv
     }
   }, [messages, isTyping, isPipelineActive]);
 
+  // ⚡ Bolt Optimization: Memoize the temporary message and empty array to prevent unnecessary re-renders of MessageBubble
+  const tempMessage = useMemo<Message>(() => ({
+    id: 'temp-processing',
+    role: 'assistant',
+    content: '',
+    timestamp: new Date()
+  }), []);
+
+  const emptyPipelineSteps = useMemo<PipelineStep[]>(() => [], []);
+
   return (
     <div className="flex-1 overflow-y-auto px-4 md:px-8 xl:px-24 pt-6 pb-12 w-full max-w-5xl mx-auto">
       {messages.map((msg) => {
@@ -36,13 +46,8 @@ export function MessageList({ messages, isTyping, pipelineSteps, isPipelineActiv
       {(isTyping || isPipelineActive) && (
         <MessageBubble
           isProcessing={true}
-          pipelineSteps={isPipelineActive ? pipelineSteps : []}
-          message={{
-            id: 'temp-processing',
-            role: 'assistant',
-            content: '',
-            timestamp: new Date()
-          }}
+          pipelineSteps={isPipelineActive ? pipelineSteps : emptyPipelineSteps}
+          message={tempMessage}
         />
       )}
       
