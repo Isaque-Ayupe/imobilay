@@ -82,6 +82,7 @@ class SemanticRouter:
     def __init__(self):
         self._model = None
         self._intent_embeddings: dict[str, list[np.ndarray]] = {}
+        self._intent_embeddings_matrix: dict[str, np.ndarray] = {}
         self._embeddings_cache: dict[str, list[np.ndarray]] | None = None
         self._use_fallback = False
 
@@ -148,6 +149,9 @@ class SemanticRouter:
                         ]
                         idx += count
 
+            self._intent_embeddings_matrix = {
+                name: np.array(embs) for name, embs in self._intent_embeddings.items()
+            }
             self._embeddings_cache = dict(self._intent_embeddings)
 
         except ImportError:
@@ -156,6 +160,9 @@ class SemanticRouter:
             self._embeddings_cache = {
                 intent_name: [np.array([1.0])]
                 for intent_name in (intent_examples or DEFAULT_INTENT_EXAMPLES)
+            }
+            self._intent_embeddings_matrix = {
+                name: np.array(embs) for name, embs in self._embeddings_cache.items()
             }
 
     async def route(self, message: str) -> RoutingResult:
@@ -179,14 +186,17 @@ class SemanticRouter:
         # Calcular scores por intent (média dos top-3 mais similares)
         raw_scores: dict[str, float] = {}
 
-        for intent_name, embeddings in self._intent_embeddings.items():
-            similarities = [
-                float(np.dot(msg_embedding, emb))
-                for emb in embeddings
-            ]
-            # Top-3 para robustez (menos sensível a outliers)
-            top_k = sorted(similarities, reverse=True)[:3]
-            raw_scores[intent_name] = sum(top_k) / len(top_k)
+        # ⚡ Bolt Optimization:
+        # Use vectorized np.dot matrix multiplication instead of looping list comprehensions
+        # and replace O(N log N) sorted() with O(N) np.partition()
+        for intent_name, embeddings_matrix in self._intent_embeddings_matrix.items():
+            similarities = np.dot(embeddings_matrix, msg_embedding)
+            k = min(3, len(similarities))
+            if len(similarities) > k:
+                top_k = np.partition(similarities, -k)[-k:]
+            else:
+                top_k = similarities
+            raw_scores[intent_name] = float(np.sum(top_k) / k)
 
         return self._build_result(raw_scores)
 
