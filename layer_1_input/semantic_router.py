@@ -82,6 +82,7 @@ class SemanticRouter:
     def __init__(self):
         self._model = None
         self._intent_embeddings: dict[str, list[np.ndarray]] = {}
+        self._intent_matrices: dict[str, np.ndarray] = {}  # ⚡ Bolt: Cache matrix for O(1) vectorized math
         self._embeddings_cache: dict[str, list[np.ndarray]] | None = None
         self._use_fallback = False
 
@@ -150,6 +151,12 @@ class SemanticRouter:
 
             self._embeddings_cache = dict(self._intent_embeddings)
 
+            # ⚡ Bolt: Stack embeddings into a single matrix per intent
+            self._intent_matrices = {
+                intent_name: np.vstack(embeddings)
+                for intent_name, embeddings in self._intent_embeddings.items()
+            }
+
         except ImportError:
             self._use_fallback = True
             logger.warning("sentence-transformers indisponível. Usando fallback baseado em keywords.")
@@ -179,14 +186,18 @@ class SemanticRouter:
         # Calcular scores por intent (média dos top-3 mais similares)
         raw_scores: dict[str, float] = {}
 
-        for intent_name, embeddings in self._intent_embeddings.items():
-            similarities = [
-                float(np.dot(msg_embedding, emb))
-                for emb in embeddings
-            ]
-            # Top-3 para robustez (menos sensível a outliers)
-            top_k = sorted(similarities, reverse=True)[:3]
-            raw_scores[intent_name] = sum(top_k) / len(top_k)
+        # ⚡ Bolt: Vectorized cosine similarity using NumPy matrix multiplication
+        for intent_name, matrix in self._intent_matrices.items():
+            # O(1) in Python, runs in fast C loops vs O(N) list comprehension
+            similarities = np.dot(matrix, msg_embedding)
+
+            # ⚡ Bolt: Use partition instead of sort for faster Top-K
+            if len(similarities) > 3:
+                top_k = np.partition(similarities, -3)[-3:]
+            else:
+                top_k = similarities
+
+            raw_scores[intent_name] = float(np.mean(top_k))
 
         return self._build_result(raw_scores)
 
