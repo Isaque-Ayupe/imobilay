@@ -93,13 +93,15 @@ async def chat_endpoint(req: ChatRequest):
             raise HTTPException(status_code=500, detail="An internal server error occurred processing the chat message.")
 
 
+from fastapi import Request
+
 @app.get("/api/sessions", response_model=list[SessionResponse])
-async def list_sessions(user_id: str):
+async def list_sessions(user_id: str, request: Request):
     """
     Retorna as sessões de chat do usuário.
     """
     try:
-        from database.client import get_system_client
+        from database.client import get_user_client
         from database.repositories.session_repository import SessionRepository
         import uuid
 
@@ -109,7 +111,12 @@ async def list_sessions(user_id: str):
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid user_id format. Must be a UUID.")
         
-        supabase = await get_system_client()
+        auth_header = request.headers.get("Authorization")
+        if not auth_header or not auth_header.startswith("Bearer "):
+            raise HTTPException(status_code=401, detail="Missing or invalid token")
+
+        token = auth_header.split(" ")[1]
+        supabase = await get_user_client(token)
         repo = SessionRepository(supabase)
         sessions = await repo.list_by_user(user_id)
         
