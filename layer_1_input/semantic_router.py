@@ -82,6 +82,7 @@ class SemanticRouter:
     def __init__(self):
         self._model = None
         self._intent_embeddings: dict[str, list[np.ndarray]] = {}
+        self._intent_matrices: dict[str, np.ndarray] = {}
         self._embeddings_cache: dict[str, list[np.ndarray]] | None = None
         self._use_fallback = False
 
@@ -111,10 +112,13 @@ class SemanticRouter:
                     # Carrega as embeddings já computadas do banco
                     for intent_name, items in db_data.items():
                         # Converte listas para numpy arrays e normaliza
-                        self._intent_embeddings[intent_name] = [
+                        embs = [
                             np.array(item["embedding"]) / np.linalg.norm(np.array(item["embedding"]))
                             for item in items if item.get("embedding")
                         ]
+                        self._intent_embeddings[intent_name] = embs
+                        if embs:
+                            self._intent_matrices[intent_name] = np.vstack(embs)
                     db_intents_loaded = True
                     logger.info("Intents e embeddings carregados do banco de dados com sucesso.")
 
@@ -143,9 +147,12 @@ class SemanticRouter:
                     for i, intent_name in enumerate(all_intents):
                         count = counts[i]
                         intent_emb = embeddings[idx:idx+count]
-                        self._intent_embeddings[intent_name] = [
+                        embs = [
                             emb / np.linalg.norm(emb) for emb in intent_emb
                         ]
+                        self._intent_embeddings[intent_name] = embs
+                        if embs:
+                            self._intent_matrices[intent_name] = np.vstack(embs)
                         idx += count
 
             self._embeddings_cache = dict(self._intent_embeddings)
@@ -177,16 +184,18 @@ class SemanticRouter:
         msg_embedding = msg_embedding / np.linalg.norm(msg_embedding)
 
         # Calcular scores por intent (média dos top-3 mais similares)
+        # ⚡ Bolt: Optimização de performance: vectorização com numpy e np.partition
+        # substituindo list comprehensions e ordenamento completo de arrays.
         raw_scores: dict[str, float] = {}
 
-        for intent_name, embeddings in self._intent_embeddings.items():
-            similarities = [
-                float(np.dot(msg_embedding, emb))
-                for emb in embeddings
-            ]
-            # Top-3 para robustez (menos sensível a outliers)
-            top_k = sorted(similarities, reverse=True)[:3]
-            raw_scores[intent_name] = sum(top_k) / len(top_k)
+        for intent_name, matrix in self._intent_matrices.items():
+            similarities = np.dot(matrix, msg_embedding)
+            k = min(3, len(similarities))
+            if k == 0:
+                raw_scores[intent_name] = 0.0
+            else:
+                top_k = np.partition(similarities, -k)[-k:]
+                raw_scores[intent_name] = float(np.mean(top_k))
 
         return self._build_result(raw_scores)
 
