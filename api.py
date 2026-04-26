@@ -4,7 +4,7 @@ IMOBILAY — FastAPI Server
 Exposição das APIs REST para consumo do Frontend React (Directive 07).
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Any
@@ -94,14 +94,19 @@ async def chat_endpoint(req: ChatRequest):
 
 
 @app.get("/api/sessions", response_model=list[SessionResponse])
-async def list_sessions(user_id: str):
+async def list_sessions(user_id: str, request: Request):
     """
     Retorna as sessões de chat do usuário.
     """
     try:
-        from database.client import get_system_client
+        from database.client import get_user_client
         from database.repositories.session_repository import SessionRepository
         import uuid
+
+        auth_header = request.headers.get("Authorization")
+        if not auth_header or not auth_header.startswith("Bearer "):
+            raise HTTPException(status_code=401, detail="Missing or invalid Authorization header.")
+        user_jwt = auth_header.split(" ")[1]
 
         try:
             # Validate user_id is a valid UUID
@@ -109,7 +114,7 @@ async def list_sessions(user_id: str):
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid user_id format. Must be a UUID.")
         
-        supabase = await get_system_client()
+        supabase = await get_user_client(user_jwt)
         repo = SessionRepository(supabase)
         sessions = await repo.list_by_user(user_id)
         
