@@ -81,8 +81,8 @@ class SemanticRouter:
 
     def __init__(self):
         self._model = None
-        self._intent_embeddings: dict[str, list[np.ndarray]] = {}
-        self._embeddings_cache: dict[str, list[np.ndarray]] | None = None
+        self._intent_embeddings: dict[str, np.ndarray] = {}
+        self._embeddings_cache: dict[str, np.ndarray] | None = None
         self._use_fallback = False
 
     async def initialize(self, intent_examples: dict[str, list[str]] | None = None):
@@ -111,10 +111,12 @@ class SemanticRouter:
                     # Carrega as embeddings já computadas do banco
                     for intent_name, items in db_data.items():
                         # Converte listas para numpy arrays e normaliza
-                        self._intent_embeddings[intent_name] = [
+                        normalized = [
                             np.array(item["embedding"]) / np.linalg.norm(np.array(item["embedding"]))
                             for item in items if item.get("embedding")
                         ]
+                        if normalized:
+                            self._intent_embeddings[intent_name] = np.stack(normalized)
                     db_intents_loaded = True
                     logger.info("Intents e embeddings carregados do banco de dados com sucesso.")
 
@@ -143,9 +145,9 @@ class SemanticRouter:
                     for i, intent_name in enumerate(all_intents):
                         count = counts[i]
                         intent_emb = embeddings[idx:idx+count]
-                        self._intent_embeddings[intent_name] = [
-                            emb / np.linalg.norm(emb) for emb in intent_emb
-                        ]
+                        normalized = [emb / np.linalg.norm(emb) for emb in intent_emb]
+                        if normalized:
+                            self._intent_embeddings[intent_name] = np.stack(normalized)
                         idx += count
 
             self._embeddings_cache = dict(self._intent_embeddings)
@@ -154,7 +156,7 @@ class SemanticRouter:
             self._use_fallback = True
             logger.warning("sentence-transformers indisponível. Usando fallback baseado em keywords.")
             self._embeddings_cache = {
-                intent_name: [np.array([1.0])]
+                intent_name: np.array([[1.0]])
                 for intent_name in (intent_examples or DEFAULT_INTENT_EXAMPLES)
             }
 
@@ -179,14 +181,23 @@ class SemanticRouter:
         # Calcular scores por intent (média dos top-3 mais similares)
         raw_scores: dict[str, float] = {}
 
-        for intent_name, embeddings in self._intent_embeddings.items():
-            similarities = [
-                float(np.dot(msg_embedding, emb))
-                for emb in embeddings
-            ]
-            # Top-3 para robustez (menos sensível a outliers)
-            top_k = sorted(similarities, reverse=True)[:3]
-            raw_scores[intent_name] = sum(top_k) / len(top_k)
+        for intent_name, embeddings_matrix in self._intent_embeddings.items():
+            # Vetorização: (N, 384) x (384,) -> (N,)
+            similarities = np.dot(embeddings_matrix, msg_embedding)
+
+            # Se tivermos menos de 3 exemplos, pegamos todos, caso contrário top-3
+            k = min(3, len(similarities))
+            if k == 0:
+                raw_scores[intent_name] = 0.0
+                continue
+
+            # Top-k via np.partition (mais eficiente que sort)
+            if len(similarities) > k:
+                top_k = np.partition(similarities, -k)[-k:]
+            else:
+                top_k = similarities
+
+            raw_scores[intent_name] = float(np.mean(top_k))
 
         return self._build_result(raw_scores)
 
