@@ -7,3 +7,7 @@
 **Vulnerability:** Performance degradation and potential DoS vulnerability due to `auth.uid()` being called per-row in Row Level Security (RLS) policies. In a large table, this would mean executing the function repeatedly for every scanned row.
 **Learning:** `auth.uid()` evaluates per row when used directly in the `USING` clause, turning what should be a fast indexed query into a slow sequential scan.
 **Prevention:** Always wrap `auth.uid()` (and similar functions) in a subselect `(select auth.uid())` when writing RLS policies. This ensures the function is evaluated only once and its result is cached for the entire query execution.
+## 2026-04-28 - [Fix IDOR in /api/sessions endpoint]
+**Vulnerability:** The `/api/sessions` endpoint used `get_system_client()` (which bypasses RLS) and did not authenticate the requesting user, creating an IDOR vulnerability where anyone could fetch any user's sessions by guessing their UUID.
+**Learning:** Backend endpoints that fetch user-specific data must always extract the user's JWT and use a user-scoped database client to enforce Row-Level Security (RLS) policies, rather than relying on the highly-privileged service role client used by internal agents.
+**Prevention:** Ensure all FastAPI endpoints that handle user data extract the `Authorization` header, validate the JWT, and instantiate the database client using `get_user_client(user_jwt)`.
