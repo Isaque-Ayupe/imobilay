@@ -5,3 +5,7 @@
 ## 2026-03-27 - Frontend Property Iteration Bottleneck
 **Learning:** When rendering chat messages that contain multiple properties and their associated analyses, using `.find()` inside a `.map()` loop creates an O(N * M) performance bottleneck (N properties * M analysis entries). In React, this runs on every render of the component. Similarly, instantiating `Intl.NumberFormat` inside the render function of the property card introduces unnecessary overhead on every render, which gets magnified by the number of properties displayed.
 **Action:** Extract expensive instantiations (like `Intl.NumberFormat`) outside of React component render functions. Always replace O(N²) nested array `.find()` lookups within `.map()` loops with O(N) `Map` lookups created beforehand.
+
+## 2026-04-28 - Vectorized Cosine Similarity
+**Learning:** In the backend, vectorizing cosine similarity calculations in `SemanticRouter` using NumPy matrix-vector multiplication (`np.dot` with a 2D `embeddings_matrix` stacked from 1D vectors) and top-K element extraction with `np.partition` significantly improves performance over Python list comprehensions and sorting.
+**Action:** Always pre-stack 1D vector embeddings into 2D matrices when calculating cosine similarity against a single input vector. Use `np.partition` instead of `sorted()` for O(N) unordered extraction of top elements.
