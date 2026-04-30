@@ -84,6 +84,9 @@ class SemanticRouter:
         self._intent_embeddings: dict[str, list[np.ndarray]] = {}
         self._embeddings_cache: dict[str, list[np.ndarray]] | None = None
         self._use_fallback = False
+        # Cached properties for vectorised performance
+        self._all_embeddings_matrix: np.ndarray | None = None
+        self._intent_indices: dict[str, tuple[int, int]] = {}
 
     async def initialize(self, intent_examples: dict[str, list[str]] | None = None):
         """
@@ -150,6 +153,20 @@ class SemanticRouter:
 
             self._embeddings_cache = dict(self._intent_embeddings)
 
+            # Build vectorised matrix for faster O(N) cosine similarities
+            all_embs = []
+            current_idx = 0
+            self._intent_indices.clear()
+            self._all_embeddings_matrix = None
+
+            for intent_name, embeddings_list in self._intent_embeddings.items():
+                all_embs.extend(embeddings_list)
+                count = len(embeddings_list)
+                self._intent_indices[intent_name] = (current_idx, current_idx + count)
+                current_idx += count
+            if all_embs:
+                self._all_embeddings_matrix = np.array(all_embs)
+
         except ImportError:
             self._use_fallback = True
             logger.warning("sentence-transformers indisponível. Usando fallback baseado em keywords.")
@@ -179,14 +196,28 @@ class SemanticRouter:
         # Calcular scores por intent (média dos top-3 mais similares)
         raw_scores: dict[str, float] = {}
 
-        for intent_name, embeddings in self._intent_embeddings.items():
-            similarities = [
-                float(np.dot(msg_embedding, emb))
-                for emb in embeddings
-            ]
-            # Top-3 para robustez (menos sensível a outliers)
-            top_k = sorted(similarities, reverse=True)[:3]
-            raw_scores[intent_name] = sum(top_k) / len(top_k)
+        if self._all_embeddings_matrix is not None and self._intent_indices:
+            # ⚡ Bolt: vectorized similarity calculation
+            # Use dot product matrix mult. instead of python list loops.
+            all_similarities = np.dot(self._all_embeddings_matrix, msg_embedding)
+
+            for intent_name, (start_idx, end_idx) in self._intent_indices.items():
+                intent_sims = all_similarities[start_idx:end_idx]
+                if len(intent_sims) >= 3:
+                    # O(N) top-k extraction vs O(N log N) sorting
+                    top_k = np.partition(intent_sims, -3)[-3:]
+                else:
+                    top_k = intent_sims
+                raw_scores[intent_name] = float(np.sum(top_k) / len(top_k))
+        else:
+            for intent_name, embeddings in self._intent_embeddings.items():
+                similarities = [
+                    float(np.dot(msg_embedding, emb))
+                    for emb in embeddings
+                ]
+                # Top-3 para robustez (menos sensível a outliers)
+                top_k = sorted(similarities, reverse=True)[:3]
+                raw_scores[intent_name] = sum(top_k) / len(top_k)
 
         return self._build_result(raw_scores)
 
