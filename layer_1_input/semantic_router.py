@@ -85,6 +85,10 @@ class SemanticRouter:
         self._embeddings_cache: dict[str, list[np.ndarray]] | None = None
         self._use_fallback = False
 
+        # ⚡ Bolt Optimization Cache
+        self._all_embeddings_matrix: np.ndarray | None = None
+        self._intent_indices: dict[str, tuple[int, int]] = {}
+
     async def initialize(self, intent_examples: dict[str, list[str]] | None = None):
         """
         Inicializa o modelo e carrega embeddings dos intents.
@@ -150,6 +154,18 @@ class SemanticRouter:
 
             self._embeddings_cache = dict(self._intent_embeddings)
 
+            # ⚡ Bolt Optimization:
+            # Pre-compute a single matrix for all embeddings to enable vectorized cosine similarity via np.dot
+            # instead of using Python list comprehensions and per-intent matrix multiplications during route()
+            all_embs = []
+            current_idx = 0
+            for intent_name, embs in self._intent_embeddings.items():
+                all_embs.extend(embs)
+                self._intent_indices[intent_name] = (current_idx, current_idx + len(embs))
+                current_idx += len(embs)
+            if all_embs:
+                self._all_embeddings_matrix = np.vstack(all_embs)
+
         except ImportError:
             self._use_fallback = True
             logger.warning("sentence-transformers indisponível. Usando fallback baseado em keywords.")
@@ -179,14 +195,30 @@ class SemanticRouter:
         # Calcular scores por intent (média dos top-3 mais similares)
         raw_scores: dict[str, float] = {}
 
-        for intent_name, embeddings in self._intent_embeddings.items():
-            similarities = [
-                float(np.dot(msg_embedding, emb))
-                for emb in embeddings
-            ]
-            # Top-3 para robustez (menos sensível a outliers)
-            top_k = sorted(similarities, reverse=True)[:3]
-            raw_scores[intent_name] = sum(top_k) / len(top_k)
+        # ⚡ Bolt Optimization:
+        # Vectorizing cosine similarity calculations using NumPy matrix-vector multiplication (`np.dot`)
+        # with a single 2D `_all_embeddings_matrix` stacked across all intents and an `_intent_indices` mask
+        # significantly improves performance over Python list comprehensions and per-intent matrix multiplications.
+        if self._all_embeddings_matrix is not None:
+            all_similarities = np.dot(self._all_embeddings_matrix, msg_embedding)
+            for intent_name, (start_idx, end_idx) in self._intent_indices.items():
+                similarities = all_similarities[start_idx:end_idx]
+                k = min(3, len(similarities))
+                if len(similarities) > k:
+                    # Use np.partition instead of full sort for O(N) top-K extraction
+                    top_k = np.partition(similarities, -k)[-k:]
+                else:
+                    top_k = similarities
+                raw_scores[intent_name] = float(np.mean(top_k))
+        else:
+            # Fallback (shouldn't happen if initialized properly without fallback)
+            for intent_name, embeddings in self._intent_embeddings.items():
+                similarities = np.dot(embeddings, msg_embedding)
+                if len(similarities) > 3:
+                    top_k = np.partition(similarities, -3)[-3:]
+                else:
+                    top_k = similarities
+                raw_scores[intent_name] = float(np.mean(top_k))
 
         return self._build_result(raw_scores)
 
