@@ -184,9 +184,13 @@ class SemanticRouter:
                 float(np.dot(msg_embedding, emb))
                 for emb in embeddings
             ]
-            # Top-3 para robustez (menos sensível a outliers)
-            top_k = sorted(similarities, reverse=True)[:3]
-            raw_scores[intent_name] = sum(top_k) / len(top_k)
+            # Top-3 para robustez (menos sensível a outliers). O(N) em vez de O(N log N)
+            k = min(3, len(similarities))
+            if k > 0:
+                top_k = np.partition(similarities, -k)[-k:]
+                raw_scores[intent_name] = float(np.sum(top_k)) / k
+            else:
+                raw_scores[intent_name] = 0.0
 
         return self._build_result(raw_scores)
 
