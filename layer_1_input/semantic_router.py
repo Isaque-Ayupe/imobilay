@@ -85,6 +85,10 @@ class SemanticRouter:
         self._embeddings_cache: dict[str, list[np.ndarray]] | None = None
         self._use_fallback = False
 
+        # Otimizações de vetorização para classificação rápida
+        self._all_embeddings_matrix: np.ndarray | None = None
+        self._intent_indices: dict[str, tuple[int, int]] = {}
+
     async def initialize(self, intent_examples: dict[str, list[str]] | None = None):
         """
         Inicializa o modelo e carrega embeddings dos intents.
@@ -150,6 +154,17 @@ class SemanticRouter:
 
             self._embeddings_cache = dict(self._intent_embeddings)
 
+            # Pré-computa matriz única para classificação vetorizada ultra-rápida (O(1) matrix mult)
+            all_embeddings_list = []
+            current_idx = 0
+            for intent_name, embeddings in self._intent_embeddings.items():
+                all_embeddings_list.extend(embeddings)
+                self._intent_indices[intent_name] = (current_idx, current_idx + len(embeddings))
+                current_idx += len(embeddings)
+
+            if all_embeddings_list:
+                self._all_embeddings_matrix = np.vstack(all_embeddings_list)
+
         except ImportError:
             self._use_fallback = True
             logger.warning("sentence-transformers indisponível. Usando fallback baseado em keywords.")
@@ -171,22 +186,35 @@ class SemanticRouter:
         return self._embedding_route(message)
 
     def _embedding_route(self, message: str) -> RoutingResult:
-        """Classificação via embedding cosine similarity."""
+        """Classificação via embedding cosine similarity otimizada."""
         # Gerar embedding da mensagem
         msg_embedding = self._model.encode([message.lower()])[0]
         msg_embedding = msg_embedding / np.linalg.norm(msg_embedding)
 
-        # Calcular scores por intent (média dos top-3 mais similares)
         raw_scores: dict[str, float] = {}
 
-        for intent_name, embeddings in self._intent_embeddings.items():
-            similarities = [
-                float(np.dot(msg_embedding, emb))
-                for emb in embeddings
-            ]
-            # Top-3 para robustez (menos sensível a outliers)
-            top_k = sorted(similarities, reverse=True)[:3]
-            raw_scores[intent_name] = sum(top_k) / len(top_k)
+        # Se matriz pré-computada não existir, fallback silencioso
+        if self._all_embeddings_matrix is None:
+            return self._build_result(raw_scores)
+
+        # ⚡ Bolt Optimization:
+        # Multiplicação de matriz única (O(1) iterações) em vez de N multiplicações de vetores (O(N))
+        # Substitui loop com list comprehension + np.dot() iterativo
+        all_similarities = np.dot(self._all_embeddings_matrix, msg_embedding)
+
+        # Extrair scores por intent usando as fatias pré-calculadas
+        for intent_name, (start_idx, end_idx) in self._intent_indices.items():
+            similarities = all_similarities[start_idx:end_idx]
+
+            # ⚡ Bolt Optimization:
+            # np.partition (O(N)) é muito mais rápido que sorted() completo (O(N log N))
+            # quando só precisamos dos top K elementos não ordenados entre si
+            if len(similarities) >= 3:
+                top_k = np.partition(similarities, -3)[-3:]
+            else:
+                top_k = similarities
+
+            raw_scores[intent_name] = float(np.sum(top_k) / len(top_k))
 
         return self._build_result(raw_scores)
 
