@@ -4,7 +4,7 @@ IMOBILAY — FastAPI Server
 Exposição das APIs REST para consumo do Frontend React (Directive 07).
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Any
@@ -44,7 +44,7 @@ class SessionResponse(BaseModel):
 
 
 @app.post("/api/chat", response_model=ChatResponse)
-async def chat_endpoint(req: ChatRequest):
+async def chat_endpoint(req: ChatRequest, authorization: str | None = Header(None)):
     """
     Recebe uma mensagem, executa o pipeline sincronamente (espera todos agentes)
     e retorna o texto e o estado dos dados (ContextStore dumped) pro frontend usar no card.
@@ -61,6 +61,9 @@ async def chat_endpoint(req: ChatRequest):
             uuid.UUID(req.session_id)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid user_id or session_id format. Must be a valid UUID string.")
+
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
 
     if not req.message or not req.message.strip():
         raise HTTPException(status_code=400, detail="Message cannot be empty.")
@@ -94,14 +97,18 @@ async def chat_endpoint(req: ChatRequest):
 
 
 @app.get("/api/sessions", response_model=list[SessionResponse])
-async def list_sessions(user_id: str):
+async def list_sessions(user_id: str, authorization: str | None = Header(None)):
     """
     Retorna as sessões de chat do usuário.
     """
     try:
-        from database.client import get_system_client
+        from database.client import get_user_client
         from database.repositories.session_repository import SessionRepository
         import uuid
+
+        if not authorization or not authorization.startswith("Bearer "):
+            raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
+        user_jwt = authorization.split(" ")[1]
 
         try:
             # Validate user_id is a valid UUID
@@ -109,7 +116,7 @@ async def list_sessions(user_id: str):
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid user_id format. Must be a UUID.")
         
-        supabase = await get_system_client()
+        supabase = await get_user_client(user_jwt)
         repo = SessionRepository(supabase)
         sessions = await repo.list_by_user(user_id)
         
