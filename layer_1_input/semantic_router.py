@@ -84,6 +84,25 @@ class SemanticRouter:
         self._intent_embeddings: dict[str, list[np.ndarray]] = {}
         self._embeddings_cache: dict[str, list[np.ndarray]] | None = None
         self._use_fallback = False
+        self._all_embeddings_matrix: np.ndarray | None = None
+        self._intent_indices: np.ndarray | None = None
+
+    def _build_vectorized_matrices(self):
+        """Constrói matriz global para cálculo vetorizado rápido com NumPy."""
+        if not self._intent_embeddings:
+            return
+
+        all_embeddings = []
+        intent_indices = []
+
+        for intent_name, embeddings in self._intent_embeddings.items():
+            for emb in embeddings:
+                all_embeddings.append(emb)
+                intent_indices.append(intent_name)
+
+        if all_embeddings:
+            self._all_embeddings_matrix = np.vstack(all_embeddings)
+            self._intent_indices = np.array(intent_indices)
 
     async def initialize(self, intent_examples: dict[str, list[str]] | None = None):
         """
@@ -149,6 +168,7 @@ class SemanticRouter:
                         idx += count
 
             self._embeddings_cache = dict(self._intent_embeddings)
+            self._build_vectorized_matrices()
 
         except ImportError:
             self._use_fallback = True
@@ -176,17 +196,33 @@ class SemanticRouter:
         msg_embedding = self._model.encode([message.lower()])[0]
         msg_embedding = msg_embedding / np.linalg.norm(msg_embedding)
 
-        # Calcular scores por intent (média dos top-3 mais similares)
         raw_scores: dict[str, float] = {}
 
-        for intent_name, embeddings in self._intent_embeddings.items():
-            similarities = [
-                float(np.dot(msg_embedding, emb))
-                for emb in embeddings
-            ]
-            # Top-3 para robustez (menos sensível a outliers)
-            top_k = sorted(similarities, reverse=True)[:3]
-            raw_scores[intent_name] = sum(top_k) / len(top_k)
+        # Usa multiplicação vetorizada se a matriz foi construída
+        if self._all_embeddings_matrix is not None and self._intent_indices is not None:
+            similarities = np.dot(self._all_embeddings_matrix, msg_embedding)
+
+            for intent_name in self._intent_embeddings.keys():
+                mask = self._intent_indices == intent_name
+                intent_sims = similarities[mask]
+
+                k = min(3, len(intent_sims))
+                if k == 0:
+                    continue
+
+                # Extração top-K O(N) com np.partition em vez de O(N log N) sorted()
+                if len(intent_sims) > k:
+                    top_k = np.partition(intent_sims, -k)[-k:]
+                else:
+                    top_k = intent_sims
+
+                raw_scores[intent_name] = float(np.sum(top_k) / k)
+        else:
+            # Fallback (não deve ocorrer, mas mantém segurança caso _build falhe)
+            for intent_name, embeddings in self._intent_embeddings.items():
+                sims = [float(np.dot(msg_embedding, emb)) for emb in embeddings]
+                top_k = sorted(sims, reverse=True)[:3]
+                raw_scores[intent_name] = sum(top_k) / len(top_k)
 
         return self._build_result(raw_scores)
 
