@@ -82,6 +82,7 @@ class SemanticRouter:
     def __init__(self):
         self._model = None
         self._intent_embeddings: dict[str, list[np.ndarray]] = {}
+        self._intent_embeddings_matrix: dict[str, np.ndarray] = {}
         self._embeddings_cache: dict[str, list[np.ndarray]] | None = None
         self._use_fallback = False
 
@@ -150,6 +151,11 @@ class SemanticRouter:
 
             self._embeddings_cache = dict(self._intent_embeddings)
 
+            # Pre-compute matrices for vectorized cosine similarity
+            for intent_name, embs in self._intent_embeddings.items():
+                if embs:
+                    self._intent_embeddings_matrix[intent_name] = np.vstack(embs)
+
         except ImportError:
             self._use_fallback = True
             logger.warning("sentence-transformers indisponível. Usando fallback baseado em keywords.")
@@ -179,14 +185,19 @@ class SemanticRouter:
         # Calcular scores por intent (média dos top-3 mais similares)
         raw_scores: dict[str, float] = {}
 
-        for intent_name, embeddings in self._intent_embeddings.items():
-            similarities = [
-                float(np.dot(msg_embedding, emb))
-                for emb in embeddings
-            ]
+        for intent_name, matrix in self._intent_embeddings_matrix.items():
+            # Vetorização da similaridade por cosseno
+            similarities = np.dot(matrix, msg_embedding)
+
             # Top-3 para robustez (menos sensível a outliers)
-            top_k = sorted(similarities, reverse=True)[:3]
-            raw_scores[intent_name] = sum(top_k) / len(top_k)
+            k = min(3, len(similarities))
+            if k == 0:
+                raw_scores[intent_name] = 0.0
+                continue
+
+            # np.partition é O(N) enquanto sorted é O(N log N)
+            top_k = np.partition(similarities, -k)[-k:]
+            raw_scores[intent_name] = float(np.sum(top_k) / k)
 
         return self._build_result(raw_scores)
 
