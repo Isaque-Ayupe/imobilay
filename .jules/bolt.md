@@ -5,3 +5,6 @@
 ## 2026-03-27 - Frontend Property Iteration Bottleneck
 **Learning:** When rendering chat messages that contain multiple properties and their associated analyses, using `.find()` inside a `.map()` loop creates an O(N * M) performance bottleneck (N properties * M analysis entries). In React, this runs on every render of the component. Similarly, instantiating `Intl.NumberFormat` inside the render function of the property card introduces unnecessary overhead on every render, which gets magnified by the number of properties displayed.
 **Action:** Extract expensive instantiations (like `Intl.NumberFormat`) outside of React component render functions. Always replace O(N²) nested array `.find()` lookups within `.map()` loops with O(N) `Map` lookups created beforehand.
+## 2026-05-24 - Async IO Operations in Agents
+**Learning:** Despite comments indicating parallel requests, the WebScraperAgent was awaiting API fetches sequentially (`await _fetch_zap` then `await _fetch_vivareal`), doubling the I/O-bound wait time.
+**Action:** WebScraperAgent optimizes performance by concurrently calling `_fetch_zap` and `_fetch_vivareal` via `asyncio.gather` in its `execute` method, as these operations are independent I/O-bound tasks.
