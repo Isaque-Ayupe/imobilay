@@ -52,12 +52,12 @@ class WebScraperAgent(BaseAgent):
         # Buscar em paralelo nas fontes
         all_properties: list[RawProperty] = []
 
-        # ZAP Imóveis
-        zap_props = await self._fetch_zap(filters)
+        import asyncio
+        zap_props, vr_props = await asyncio.gather(
+            self._fetch_zap(filters),
+            self._fetch_vivareal(filters)
+        )
         all_properties.extend(zap_props)
-
-        # VivaReal
-        vr_props = await self._fetch_vivareal(filters)
         all_properties.extend(vr_props)
 
         logger.info(
