@@ -4,7 +4,7 @@ IMOBILAY — FastAPI Server
 Exposição das APIs REST para consumo do Frontend React (Directive 07).
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Any
@@ -80,28 +80,31 @@ async def chat_endpoint(req: ChatRequest):
     except HTTPException:
         raise
     except Exception as e:
-        import traceback
         error_msg = str(e).lower()
 
         # Determine if it's likely a 502/503 external dependency issue
         if "timeout" in error_msg or "connection" in error_msg or "supabase" in error_msg or "openai" in error_msg or "llm" in error_msg:
-            logger.error(f"External dependency or connection error in chat endpoint: {str(e)}")
+            logger.exception("External dependency or connection error in chat endpoint")
             raise HTTPException(status_code=502, detail="Failed to communicate with external dependencies (e.g., LLM or database).")
         else:
-            logger.error(f"Error in chat endpoint: {str(e)}")
-            traceback.print_exc()
+            logger.exception("Error in chat endpoint")
             raise HTTPException(status_code=500, detail="An internal server error occurred processing the chat message.")
 
 
 @app.get("/api/sessions", response_model=list[SessionResponse])
-async def list_sessions(user_id: str):
+async def list_sessions(user_id: str, authorization: str | None = Header(None)):
     """
     Retorna as sessões de chat do usuário.
     """
     try:
-        from database.client import get_system_client
+        from database.client import get_user_client
         from database.repositories.session_repository import SessionRepository
         import uuid
+
+        if not authorization or not authorization.startswith("Bearer "):
+            raise HTTPException(status_code=401, detail="Missing or invalid authentication token.")
+
+        user_jwt = authorization.split(" ")[1]
 
         try:
             # Validate user_id is a valid UUID
@@ -109,7 +112,7 @@ async def list_sessions(user_id: str):
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid user_id format. Must be a UUID.")
         
-        supabase = await get_system_client()
+        supabase = await get_user_client(user_jwt)
         repo = SessionRepository(supabase)
         sessions = await repo.list_by_user(user_id)
         
@@ -134,11 +137,9 @@ async def list_sessions(user_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        import traceback
         import logging
         logger = logging.getLogger(__name__)
-        logger.error(f"Error fetching sessions for user {user_id}: {str(e)}")
-        traceback.print_exc()
+        logger.exception(f"Error fetching sessions for user {user_id}")
         raise HTTPException(status_code=500, detail="An internal server error occurred while fetching sessions.")
 
 
