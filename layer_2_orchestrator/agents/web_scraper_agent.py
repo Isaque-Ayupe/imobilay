@@ -9,6 +9,7 @@ Fallback: lista vazia com AgentError descritivo.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from models.context import ContextPatch, ContextStore
 from models.property import RawProperty, PropertySource
@@ -52,12 +53,15 @@ class WebScraperAgent(BaseAgent):
         # Buscar em paralelo nas fontes
         all_properties: list[RawProperty] = []
 
-        # ZAP Imóveis
-        zap_props = await self._fetch_zap(filters)
-        all_properties.extend(zap_props)
+        # ⚡ Bolt Optimization:
+        # Usa asyncio.gather para executar as requisições de ZAP e VivaReal de forma concorrente
+        # em vez de aguardar sequencialmente, reduzindo o tempo de latência de rede pela metade.
+        zap_props, vr_props = await asyncio.gather(
+            self._fetch_zap(filters),
+            self._fetch_vivareal(filters)
+        )
 
-        # VivaReal
-        vr_props = await self._fetch_vivareal(filters)
+        all_properties.extend(zap_props)
         all_properties.extend(vr_props)
 
         logger.info(
