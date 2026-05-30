@@ -7,3 +7,8 @@
 **Vulnerability:** Performance degradation and potential DoS vulnerability due to `auth.uid()` being called per-row in Row Level Security (RLS) policies. In a large table, this would mean executing the function repeatedly for every scanned row.
 **Learning:** `auth.uid()` evaluates per row when used directly in the `USING` clause, turning what should be a fast indexed query into a slow sequential scan.
 **Prevention:** Always wrap `auth.uid()` (and similar functions) in a subselect `(select auth.uid())` when writing RLS policies. This ensures the function is evaluated only once and its result is cached for the entire query execution.
+
+## 2024-05-30 - Fix Insecure Direct Object Reference in API
+**Vulnerability:** The API `list_sessions` endpoint used `get_system_client()`, which bypassed Row-Level Security (RLS) entirely, causing an Insecure Direct Object Reference (IDOR) where a user could query sessions using any `user_id` without verifying they own that token/user.
+**Learning:** Returning user-specific data from an API endpoint must use an RLS-bound Supabase client. System client accesses the DB with service_role privileges which circumvents all table access policies.
+**Prevention:** Always extract the user's JWT from the `Authorization` header and instantiate the database client using `get_user_client(user_jwt)` rather than `get_system_client()` for endpoints returning non-public or user-restricted resources.
