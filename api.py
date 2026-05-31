@@ -117,10 +117,16 @@ async def list_sessions(user_id: str):
             raise HTTPException(status_code=404, detail="No sessions found for this user.")
 
         from datetime import timedelta
+
+        # ⚡ Optimization: Extract invariant datetime calculations outside the loop
+        # to avoid O(N) redundant system calls.
+        today_date = datetime.now().date()
+        yesterday_date = today_date - timedelta(days=1)
+
         response_list = []
         for s in sessions:
-            is_today = s.last_active.date() == datetime.now().date()
-            is_yesterday = s.last_active.date() == (datetime.now().date() - timedelta(days=1))
+            is_today = s.last_active.date() == today_date
+            is_yesterday = s.last_active.date() == yesterday_date
 
             response_list.append(SessionResponse(
                 id=str(s.id),

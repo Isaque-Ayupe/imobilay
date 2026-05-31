@@ -5,3 +5,7 @@
 ## 2026-03-27 - Frontend Property Iteration Bottleneck
 **Learning:** When rendering chat messages that contain multiple properties and their associated analyses, using `.find()` inside a `.map()` loop creates an O(N * M) performance bottleneck (N properties * M analysis entries). In React, this runs on every render of the component. Similarly, instantiating `Intl.NumberFormat` inside the render function of the property card introduces unnecessary overhead on every render, which gets magnified by the number of properties displayed.
 **Action:** Extract expensive instantiations (like `Intl.NumberFormat`) outside of React component render functions. Always replace O(N²) nested array `.find()` lookups within `.map()` loops with O(N) `Map` lookups created beforehand.
+
+## 2026-03-27 - Redundant Datetime Initialization
+**Learning:** Initializing `datetime.now().date()` and `timedelta` offsets inside iterative loops creates redundant O(N) system calls, particularly when dealing with long lists like session histories. Additionally, since loops are processed over time, this can cause a race condition if execution crosses the midnight boundary mid-loop, producing inconsistent date groupings for the same request.
+**Action:** Always extract invariant function outputs (especially those reliant on system time or heavy initializations) outside of loops.
