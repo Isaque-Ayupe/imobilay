@@ -10,3 +10,17 @@ def test_health_check_supabase_fail():
     data = response.json()
     assert "detail" in data
     assert data["detail"]["dependencies"]["supabase"] == "error"
+
+def test_list_sessions_missing_auth():
+    response = client.get("/api/sessions?user_id=123e4567-e89b-12d3-a456-426614174000")
+    # Missing Header(...) requirement leads to 422 Unprocessable Entity in FastAPI
+    assert response.status_code == 422
+
+def test_list_sessions_invalid_auth_format():
+    response = client.get(
+        "/api/sessions?user_id=123e4567-e89b-12d3-a456-426614174000",
+        headers={"Authorization": "InvalidToken"}
+    )
+    # The format should start with Bearer
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Invalid authorization header format."
