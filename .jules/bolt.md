@@ -5,3 +5,7 @@
 ## 2026-03-27 - Frontend Property Iteration Bottleneck
 **Learning:** When rendering chat messages that contain multiple properties and their associated analyses, using `.find()` inside a `.map()` loop creates an O(N * M) performance bottleneck (N properties * M analysis entries). In React, this runs on every render of the component. Similarly, instantiating `Intl.NumberFormat` inside the render function of the property card introduces unnecessary overhead on every render, which gets magnified by the number of properties displayed.
 **Action:** Extract expensive instantiations (like `Intl.NumberFormat`) outside of React component render functions. Always replace O(N²) nested array `.find()` lookups within `.map()` loops with O(N) `Map` lookups created beforehand.
+
+## 2024-06-11 - Static Data Recomputation in Parsing Loop
+**Learning:** Reconstructing and sorting static reference lists (e.g. `KNOWN_NEIGHBORHOODS`) dynamically inside a parsing function like `parse_filters` introduces an unnecessary `O(N log N)` penalty on every execution. In data-heavy routines, repetitive operations on unchanged data structure creates significant overhead that slows down the pipeline execution sequentially.
+**Action:** Extract all immutable data processing (like flattening arrays and sorting for keyword matching) outside the request loop to module-level pre-computed constants evaluated once on startup.
