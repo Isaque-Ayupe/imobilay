@@ -63,6 +63,19 @@ PROPERTY_TYPE_KEYWORDS = {
 }
 
 
+# Pre-computed list for neighborhoods to avoid sorting on every request
+ALL_NEIGHBORHOODS_SORTED: list[tuple[str, str]] = []
+for c, ns in KNOWN_NEIGHBORHOODS.items():
+    for n in ns:
+        ALL_NEIGHBORHOODS_SORTED.append((n, c))
+ALL_NEIGHBORHOODS_SORTED.sort(key=lambda x: len(x[0]), reverse=True)
+
+# Pre-compiled regex patterns
+PRICE_MAX_RE = re.compile(r'at[eé]\s+(?:uns?\s+)?(?:r\$\s*)?(\d[\d.,]*)\s*(milh[oõ]es|milh[aã]o|mil)?\b')
+PRICE_RANGE_RE = re.compile(r'entre\s+(?:r\$\s*)?(\d[\d.,]*)\s*(?:e|a)\s*(?:r\$\s*)?(\d[\d.,]*)\s*(mil(?:hão|hões)?)?')
+ROOMS_RE = re.compile(r'(\d+)\s*(?:quartos?|q(?:tos?)?|dormit[oó]rios?|dorms?)')
+AREA_RE = re.compile(r'(\d+)\s*(?:m²|m2|metros?\s*quadrados?)')
+
 @dataclass
 class SearchFilters:
     """Filtros extraídos da mensagem do usuário."""
@@ -109,15 +122,7 @@ def parse_filters(message: str) -> SearchFilters:
                 break
 
     # ── Detectar bairro ──
-    city_key = filters.city.lower()
-    neighborhoods = KNOWN_NEIGHBORHOODS.get(city_key, [])
-    # Também buscar em todas as cidades se o bairro for único
-    all_neighborhoods = []
-    for c, ns in KNOWN_NEIGHBORHOODS.items():
-        for n in ns:
-            all_neighborhoods.append((n, c))
-
-    for bairro, cidade in sorted(all_neighborhoods, key=lambda x: len(x[0]), reverse=True):
+    for bairro, cidade in ALL_NEIGHBORHOODS_SORTED:
         if bairro in msg:
             filters.neighborhood = bairro.title()
             filters.city = cidade.title()
@@ -130,10 +135,7 @@ def parse_filters(message: str) -> SearchFilters:
     # "até uns 850 mil" → price_max=850000
 
     # Padrão: "até [uns/R$] X [mil/milhão/milhões]"
-    price_max_match = re.search(
-        r'at[eé]\s+(?:uns?\s+)?(?:r\$\s*)?(\d[\d.,]*)\s*(milh[oõ]es|milh[aã]o|mil)?\b',
-        msg
-    )
+    price_max_match = PRICE_MAX_RE.search(msg)
     if price_max_match:
         val = _parse_number(price_max_match.group(1))
         multiplier = price_max_match.group(2) or ""
@@ -147,10 +149,7 @@ def parse_filters(message: str) -> SearchFilters:
         filters.price_max = val
 
     # Padrão: "entre X e Y [mil]"
-    price_range_match = re.search(
-        r'entre\s+(?:r\$\s*)?(\d[\d.,]*)\s*(?:e|a)\s*(?:r\$\s*)?(\d[\d.,]*)\s*(mil(?:hão|hões)?)?',
-        msg
-    )
+    price_range_match = PRICE_RANGE_RE.search(msg)
     if price_range_match:
         val_min = _parse_number(price_range_match.group(1))
         val_max = _parse_number(price_range_match.group(2))
@@ -168,12 +167,12 @@ def parse_filters(message: str) -> SearchFilters:
         filters.price_max = val_max
 
     # ── Detectar quartos ──
-    rooms_match = re.search(r'(\d+)\s*(?:quartos?|q(?:tos?)?|dormit[oó]rios?|dorms?)', msg)
+    rooms_match = ROOMS_RE.search(msg)
     if rooms_match:
         filters.rooms_min = int(rooms_match.group(1))
 
     # ── Detectar área ──
-    area_match = re.search(r'(\d+)\s*(?:m²|m2|metros?\s*quadrados?)', msg)
+    area_match = AREA_RE.search(msg)
     if area_match:
         filters.area_min = float(area_match.group(1))
 

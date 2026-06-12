@@ -5,3 +5,7 @@
 ## 2026-03-27 - Frontend Property Iteration Bottleneck
 **Learning:** When rendering chat messages that contain multiple properties and their associated analyses, using `.find()` inside a `.map()` loop creates an O(N * M) performance bottleneck (N properties * M analysis entries). In React, this runs on every render of the component. Similarly, instantiating `Intl.NumberFormat` inside the render function of the property card introduces unnecessary overhead on every render, which gets magnified by the number of properties displayed.
 **Action:** Extract expensive instantiations (like `Intl.NumberFormat`) outside of React component render functions. Always replace O(N²) nested array `.find()` lookups within `.map()` loops with O(N) `Map` lookups created beforehand.
+
+## 2026-06-12 - Module-Level Regex and Constants Optimization
+**Learning:** Parsing filters inside a user request loop recalculates invariant structures (like sorting dictionaries of neighborhoods) and recompiles multiple regular expressions, which causes significant CPU overhead per request.
+**Action:** Extract list sorting, dictionary flattening, and regex compilations (using `re.compile`) to the module level so they are computed only once at import time, rather than per-execution.
