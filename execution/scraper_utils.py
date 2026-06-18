@@ -77,6 +77,13 @@ class SearchFilters:
     property_type: str | None = None
     keywords: list[str] = field(default_factory=list)
 
+# Pre-compute flattened and sorted neighborhoods to avoid O(N log N) processing on every parse call
+ALL_NEIGHBORHOODS_SORTED: list[tuple[str, str]] = []
+for _city, _ns in KNOWN_NEIGHBORHOODS.items():
+    for _n in _ns:
+        ALL_NEIGHBORHOODS_SORTED.append((_n, _city))
+ALL_NEIGHBORHOODS_SORTED.sort(key=lambda x: len(x[0]), reverse=True)
+
 
 def parse_filters(message: str) -> SearchFilters:
     """
@@ -109,15 +116,7 @@ def parse_filters(message: str) -> SearchFilters:
                 break
 
     # ── Detectar bairro ──
-    city_key = filters.city.lower()
-    neighborhoods = KNOWN_NEIGHBORHOODS.get(city_key, [])
-    # Também buscar em todas as cidades se o bairro for único
-    all_neighborhoods = []
-    for c, ns in KNOWN_NEIGHBORHOODS.items():
-        for n in ns:
-            all_neighborhoods.append((n, c))
-
-    for bairro, cidade in sorted(all_neighborhoods, key=lambda x: len(x[0]), reverse=True):
+    for bairro, cidade in ALL_NEIGHBORHOODS_SORTED:
         if bairro in msg:
             filters.neighborhood = bairro.title()
             filters.city = cidade.title()
