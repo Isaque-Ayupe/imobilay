@@ -10,3 +10,17 @@ def test_health_check_supabase_fail():
     data = response.json()
     assert "detail" in data
     assert data["detail"]["dependencies"]["supabase"] == "error"
+
+def test_list_sessions_missing_auth():
+    # Calling the sessions endpoint without authorization header should return 422 Unprocessable Entity
+    response = client.get("/api/sessions?user_id=123e4567-e89b-12d3-a456-426614174000")
+    assert response.status_code == 422
+
+def test_list_sessions_invalid_auth_format():
+    response = client.get(
+        "/api/sessions?user_id=123e4567-e89b-12d3-a456-426614174000",
+        headers={"Authorization": "InvalidTokenFormat"}
+    )
+    # The endpoint now parses authorization header and throws 401 if missing "Bearer "
+    assert response.status_code == 401
+    assert "Invalid authorization header format" in response.json()["detail"]
