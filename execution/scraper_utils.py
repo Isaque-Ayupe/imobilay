@@ -62,6 +62,25 @@ PROPERTY_TYPE_KEYWORDS = {
     "comercial": ["comercial", "sala", "loja", "escritório"],
 }
 
+# Pre-compute sorted neighborhoods
+ALL_NEIGHBORHOODS_SORTED = []
+for c, ns in KNOWN_NEIGHBORHOODS.items():
+    for n in ns:
+        ALL_NEIGHBORHOODS_SORTED.append((n, c))
+ALL_NEIGHBORHOODS_SORTED.sort(key=lambda x: len(x[0]), reverse=True)
+
+# Pre-compute city variants dynamically to support new cities in KNOWN_NEIGHBORHOODS
+CITY_VARIANTS = {}
+for _city_name in KNOWN_NEIGHBORHOODS:
+    _variants = [_city_name]
+    if _city_name == "são paulo":
+        _variants.extend(["sp", "sampa", "sao paulo"])
+    elif _city_name == "goiânia":
+        _variants.extend(["goiania", "gyn"])
+    elif _city_name == "rio de janeiro":
+        _variants.extend(["rio", "rj"])
+    CITY_VARIANTS[_city_name] = _variants
+
 
 @dataclass
 class SearchFilters:
@@ -93,31 +112,18 @@ def parse_filters(message: str) -> SearchFilters:
     msg = message.lower().strip()
 
     # ── Detectar cidade ──
-    for city_name in KNOWN_NEIGHBORHOODS:
-        # Buscar menção direta à cidade
-        city_variants = [city_name]
-        if city_name == "são paulo":
-            city_variants.extend(["sp", "sampa", "sao paulo"])
-        elif city_name == "goiânia":
-            city_variants.extend(["goiania", "gyn"])
-        elif city_name == "rio de janeiro":
-            city_variants.extend(["rio", "rj"])
-
-        for variant in city_variants:
+    for city_name, variants in CITY_VARIANTS.items():
+        city_found = False
+        for variant in variants:
             if variant in msg:
                 filters.city = city_name.title()
+                city_found = True
                 break
+        if city_found:
+            break
 
     # ── Detectar bairro ──
-    city_key = filters.city.lower()
-    neighborhoods = KNOWN_NEIGHBORHOODS.get(city_key, [])
-    # Também buscar em todas as cidades se o bairro for único
-    all_neighborhoods = []
-    for c, ns in KNOWN_NEIGHBORHOODS.items():
-        for n in ns:
-            all_neighborhoods.append((n, c))
-
-    for bairro, cidade in sorted(all_neighborhoods, key=lambda x: len(x[0]), reverse=True):
+    for bairro, cidade in ALL_NEIGHBORHOODS_SORTED:
         if bairro in msg:
             filters.neighborhood = bairro.title()
             filters.city = cidade.title()
