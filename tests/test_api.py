@@ -10,3 +10,10 @@ def test_health_check_supabase_fail():
     data = response.json()
     assert "detail" in data
     assert data["detail"]["dependencies"]["supabase"] == "error"
+
+def test_list_sessions_missing_auth():
+    import uuid
+    dummy_uuid = str(uuid.uuid4())
+    response = client.get(f"/api/sessions?user_id={dummy_uuid}")
+    # Missing authorization header should result in 422 Unprocessable Entity
+    assert response.status_code == 422
