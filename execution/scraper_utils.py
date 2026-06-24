@@ -51,6 +51,13 @@ KNOWN_NEIGHBORHOODS: dict[str, list[str]] = {
     ],
 }
 
+# Pre-compute flattened and sorted list of neighborhoods
+ALL_NEIGHBORHOODS_SORTED = []
+for c, ns in KNOWN_NEIGHBORHOODS.items():
+    for n in ns:
+        ALL_NEIGHBORHOODS_SORTED.append((n, c))
+ALL_NEIGHBORHOODS_SORTED.sort(key=lambda x: len(x[0]), reverse=True)
+
 # Palavras-chave de tipo de imóvel
 PROPERTY_TYPE_KEYWORDS = {
     "apartamento": ["apartamento", "apto", "ap"],
@@ -112,12 +119,11 @@ def parse_filters(message: str) -> SearchFilters:
     city_key = filters.city.lower()
     neighborhoods = KNOWN_NEIGHBORHOODS.get(city_key, [])
     # Também buscar em todas as cidades se o bairro for único
-    all_neighborhoods = []
-    for c, ns in KNOWN_NEIGHBORHOODS.items():
-        for n in ns:
-            all_neighborhoods.append((n, c))
 
-    for bairro, cidade in sorted(all_neighborhoods, key=lambda x: len(x[0]), reverse=True):
+    # ⚡ Bolt Optimization:
+    # Use pre-computed static module-level list rather than flattening and sorting
+    # the known neighborhoods dictionary on every function call.
+    for bairro, cidade in ALL_NEIGHBORHOODS_SORTED:
         if bairro in msg:
             filters.neighborhood = bairro.title()
             filters.city = cidade.title()
