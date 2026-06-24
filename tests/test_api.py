@@ -10,3 +10,10 @@ def test_health_check_supabase_fail():
     data = response.json()
     assert "detail" in data
     assert data["detail"]["dependencies"]["supabase"] == "error"
+
+def test_list_sessions_missing_header():
+    # A valid UUID must be provided
+    user_id = "123e4567-e89b-12d3-a456-426614174000"
+    response = client.get(f"/api/sessions?user_id={user_id}")
+    # Missing required 'authorization' header results in a 422 Unprocessable Entity
+    assert response.status_code == 422
