@@ -62,6 +62,29 @@ PROPERTY_TYPE_KEYWORDS = {
     "comercial": ["comercial", "sala", "loja", "escritório"],
 }
 
+# Pre-computed variations for known cities to avoid redundant creation on every request
+def _build_city_variants() -> dict[str, list[str]]:
+    variants = {}
+    for city_name in KNOWN_NEIGHBORHOODS:
+        city_variants = [city_name]
+        if city_name == "são paulo":
+            city_variants.extend(["sp", "sampa", "sao paulo"])
+        elif city_name == "goiânia":
+            city_variants.extend(["goiania", "gyn"])
+        elif city_name == "rio de janeiro":
+            city_variants.extend(["rio", "rj"])
+        variants[city_name] = city_variants
+    return variants
+
+CITY_VARIANTS: dict[str, list[str]] = _build_city_variants()
+
+# Pre-computed, flattened, and length-sorted list of all neighborhoods for O(1) loop setup
+PRECOMPUTED_ALL_NEIGHBORHOODS_SORTED = sorted(
+    [(n, c) for c, ns in KNOWN_NEIGHBORHOODS.items() for n in ns],
+    key=lambda x: len(x[0]),
+    reverse=True
+)
+
 
 @dataclass
 class SearchFilters:
@@ -93,31 +116,18 @@ def parse_filters(message: str) -> SearchFilters:
     msg = message.lower().strip()
 
     # ── Detectar cidade ──
-    for city_name in KNOWN_NEIGHBORHOODS:
-        # Buscar menção direta à cidade
-        city_variants = [city_name]
-        if city_name == "são paulo":
-            city_variants.extend(["sp", "sampa", "sao paulo"])
-        elif city_name == "goiânia":
-            city_variants.extend(["goiania", "gyn"])
-        elif city_name == "rio de janeiro":
-            city_variants.extend(["rio", "rj"])
-
-        for variant in city_variants:
+    city_found = False
+    for city_name, variants in CITY_VARIANTS.items():
+        for variant in variants:
             if variant in msg:
                 filters.city = city_name.title()
+                city_found = True
                 break
+        if city_found:
+            break
 
     # ── Detectar bairro ──
-    city_key = filters.city.lower()
-    neighborhoods = KNOWN_NEIGHBORHOODS.get(city_key, [])
-    # Também buscar em todas as cidades se o bairro for único
-    all_neighborhoods = []
-    for c, ns in KNOWN_NEIGHBORHOODS.items():
-        for n in ns:
-            all_neighborhoods.append((n, c))
-
-    for bairro, cidade in sorted(all_neighborhoods, key=lambda x: len(x[0]), reverse=True):
+    for bairro, cidade in PRECOMPUTED_ALL_NEIGHBORHOODS_SORTED:
         if bairro in msg:
             filters.neighborhood = bairro.title()
             filters.city = cidade.title()
