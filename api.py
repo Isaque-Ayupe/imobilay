@@ -80,7 +80,6 @@ async def chat_endpoint(req: ChatRequest):
     except HTTPException:
         raise
     except Exception as e:
-        import traceback
         error_msg = str(e).lower()
 
         # Determine if it's likely a 502/503 external dependency issue
@@ -88,8 +87,7 @@ async def chat_endpoint(req: ChatRequest):
             logger.error(f"External dependency or connection error in chat endpoint: {str(e)}")
             raise HTTPException(status_code=502, detail="Failed to communicate with external dependencies (e.g., LLM or database).")
         else:
-            logger.error(f"Error in chat endpoint: {str(e)}")
-            traceback.print_exc()
+            logger.exception("Error in chat endpoint")
             raise HTTPException(status_code=500, detail="An internal server error occurred processing the chat message.")
 
 
@@ -134,11 +132,9 @@ async def list_sessions(user_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        import traceback
         import logging
         logger = logging.getLogger(__name__)
-        logger.error(f"Error fetching sessions for user {user_id}: {str(e)}")
-        traceback.print_exc()
+        logger.exception(f"Error fetching sessions for user {user_id}")
         raise HTTPException(status_code=500, detail="An internal server error occurred while fetching sessions.")
 
 
@@ -168,8 +164,8 @@ async def health_check():
         # Simple query to check connectivity
         await supabase.table("sessions").select("id").limit(1).execute()
         deps_status.supabase = "ok"
-    except Exception as e:
-        logger.error(f"Supabase health check failed: {e}")
+    except Exception:
+        logger.exception("Supabase health check failed")
         deps_status.supabase = "error"
         overall_status = "error"
 
@@ -182,8 +178,8 @@ async def health_check():
             await redis_client.ping()
             await redis_client.aclose()
             deps_status.redis = "ok"
-        except Exception as e:
-            logger.error(f"Redis health check failed: {e}")
+        except Exception:
+            logger.exception("Redis health check failed")
             deps_status.redis = "error"
             overall_status = "error"
     else:
