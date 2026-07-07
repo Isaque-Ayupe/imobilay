@@ -118,9 +118,15 @@ async def list_sessions(user_id: str):
 
         from datetime import timedelta
         response_list = []
+
+        # Cache invariant dates outside the loop to improve performance
+        # and prevent edge cases if time ticks past midnight during iteration
+        today = datetime.now().date()
+        yesterday = today - timedelta(days=1)
+
         for s in sessions:
-            is_today = s.last_active.date() == datetime.now().date()
-            is_yesterday = s.last_active.date() == (datetime.now().date() - timedelta(days=1))
+            is_today = s.last_active.date() == today
+            is_yesterday = s.last_active.date() == yesterday
 
             response_list.append(SessionResponse(
                 id=str(s.id),
